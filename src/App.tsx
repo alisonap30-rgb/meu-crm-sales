@@ -20,6 +20,22 @@ export default function CRMSystem() {
   const [loading, setLoading] = useState(true);
   const [newLead, setNewLead] = useState({ name: '', value: '', vendor: 'Vendedor 1', notes: '' });
 
+  // Função para salvar o novo valor no banco de dados
+  const updateLeadValue = async (id: string, newValue: number) => {
+    try {
+      const { error } = await supabase
+        .from('leads')
+        .update({ value: newValue })
+        .eq('id', id);
+
+      if (error) throw error;
+      
+      // Atualiza o estado local para refletir a mudança na hora
+      setLeads(prev => prev.map(l => l.id === id ? { ...l, value: newValue } : l));
+    } catch (error) {
+      console.error('Erro ao atualizar:', error);
+    }
+  };
   // Metas e Dados
   const [goals, setGoals] = useState({
     revenue: 100000, ticket: 5000, conversion: 5, crossSell: 40, upSell: 15, 
@@ -183,7 +199,20 @@ export default function CRMSystem() {
                         </select>
                     </div>
                     <div className="font-bold text-sm">{lead.name}</div>
-                    <div className="text-green-600 font-black text-xs">R$ {Number(lead.value).toLocaleString()}</div>
+                    <div className="flex items-center gap-1 group">
+  <span className="text-green-600 font-black text-xs">R$</span>
+  <input
+    type="number"
+    defaultValue={lead.value}
+    className="bg-transparent border-b border-transparent hover:border-blue-500 focus:border-blue-500 focus:outline-none w-20 font-black text-green-600 text-xs transition-all cursor-pointer"
+    onBlur={(e) => {
+      const val = parseFloat(e.target.value);
+      if (!isNaN(val) && val !== lead.value) {
+        updateLeadValue(lead.id, val);
+      }
+    }}
+  />
+</div>
                     <textarea className="w-full text-[10px] p-2 bg-slate-50 border-none rounded-lg resize-none font-medium" rows="3" value={lead.notes || ''} onChange={(e) => saveLead({...lead, notes: e.target.value})} placeholder="Notas..." />
                     <div className="grid grid-cols-2 gap-1 pt-2 border-t text-[7px] font-black">
                       <button onClick={() => saveLead({...lead, followUp: !lead.followUp})} className={`p-1.5 rounded ${lead.followUp ? 'bg-orange-500 text-white' : 'bg-slate-50 text-slate-400'}`}>FOLLOW-UP</button>
