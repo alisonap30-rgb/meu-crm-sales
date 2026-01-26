@@ -12,7 +12,7 @@ const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 // Inicializa o cliente apenas se houver chave, senão não quebra a tela inicial
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY || 'chave-vazia');
 
-const CRMSystem = () => {
+export default function CRMSystem() {
   const [currentWeek, setCurrentWeek] = useState(1);
   const [activeTab, setActiveTab] = useState('pipeline');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -407,4 +407,3 @@ const CheckItem = ({ label, status, desc }) => (
   </div>
 );
 
-export default CRMSystem;
