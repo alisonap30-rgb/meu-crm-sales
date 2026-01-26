@@ -6,8 +6,8 @@ import {
 
 // --- CONFIGURAÇÃO SUPABASE ---
 // A URL eu peguei da sua imagem, mas a KEY você precisa colar a nova
-const SUPABASE_URL = 'https://fngtdqomifakxsoletja.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZuZ3RkcW9taWZha3hzb2xldGphIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk0MTk1MjgsImV4cCI6MjA4NDk5NTUyOH0.C_2dfQNCXt7m3wUgs-LKUK3W5SGEnSkH5Ag4F6IQsGU';
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 // Inicializa o cliente apenas se houver chave, senão não quebra a tela inicial
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY || 'chave-vazia');
