@@ -169,57 +169,73 @@ export default function CRMSystem() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-6">
-        {/* PIPELINE */}
+        {/* PIPELINE COM TOTAIS POR COLUNA */}
         {activeTab === 'pipeline' && (
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            {['contato', 'orcamento', 'negociacao', 'fechado', 'perdido'].map(stage => (
-              <div key={stage} className="bg-slate-200/40 p-3 rounded-2xl border-2 border-dashed border-slate-200 min-h-[500px]">
-                <div className="mb-4 flex justify-between items-center">
-                  <h3 className="font-black text-[10px] uppercase text-slate-400 tracking-tighter">{stage}</h3>
-                  <span className="text-[9px] font-bold bg-white px-2 py-1 rounded shadow-sm text-slate-500">
-                    {leads.filter(l => l.stage === stage && (Number(l.week) === currentWeek || (!l.week && currentWeek === 1)) && !l.isArchived).length} leads
-                  </span>
-                </div>
+            {['contato', 'orcamento', 'negociacao', 'fechado', 'perdido'].map(stage => {
+              // Cálculo do valor total da coluna
+              const stageLeads = leads.filter(l => 
+                l.stage === stage && 
+                (Number(l.week) === currentWeek || (!l.week && currentWeek === 1)) && 
+                !l.isArchived
+              );
+              const columnTotal = stageLeads.reduce((acc, curr) => acc + (Number(curr.value) || 0), 0);
 
-                {leads.filter(l => l.stage === stage && (Number(l.week) === currentWeek || (!l.week && currentWeek === 1)) && !l.isArchived).map(lead => (
-                  <div key={lead.id} className={`bg-white p-4 rounded-xl shadow-sm border mb-3 relative group transition-all ${isStale(lead.lastUpdate) && stage !== 'fechado' ? 'border-red-400 ring-2 ring-red-100' : ''}`}>
-                    <button onClick={() => deleteLead(lead.id)} className="absolute -right-2 -top-2 bg-white text-red-400 p-1 rounded-full opacity-0 group-hover:opacity-100 border shadow-sm z-10"><Trash2 size={12}/></button>
-                    
-                    <div className="flex justify-between items-center mb-2">
-                      <div className="flex items-center gap-1">
-                        <span className="text-[9px] font-black text-blue-500 uppercase bg-blue-50 px-2 py-0.5 rounded">{lead.vendor}</span>
-                        {isStale(lead.lastUpdate) && stage !== 'fechado' && <span className="bg-red-500 text-white text-[7px] font-black px-1 py-0.5 rounded animate-pulse">PARADO</span>}
-                      </div>
-                      <select className="text-[9px] font-black border-none bg-slate-100 rounded px-1" value={lead.stage} onChange={(e) => saveLead({...lead, stage: e.target.value})}>
-                        {['contato', 'orcamento', 'negociacao', 'fechado', 'perdido'].map(s => <option key={s} value={s}>{s.toUpperCase()}</option>)}
-                      </select>
+              return (
+                <div key={stage} className="bg-slate-200/40 p-3 rounded-2xl border-2 border-dashed border-slate-200 min-h-[500px]">
+                  <div className="mb-4 space-y-1">
+                    <div className="flex justify-between items-center">
+                      <h3 className="font-black text-[10px] uppercase text-slate-400 tracking-tighter">{stage}</h3>
+                      <span className="text-[9px] font-bold bg-white px-2 py-1 rounded shadow-sm text-slate-500">
+                        {stageLeads.length}
+                      </span>
                     </div>
-
-                    <div className="font-bold text-sm mb-2">{lead.name}</div>
-                    
-                    <div className="flex items-center gap-1 mb-3">
-                      <span className="text-green-600 font-black text-xs">R$</span>
-                      <input type="number" defaultValue={lead.value} className="bg-transparent font-black text-green-600 text-xs w-20 focus:outline-none border-b border-transparent hover:border-slate-200" onBlur={(e) => updateLeadValue(lead.id, parseFloat(e.target.value))} />
-                    </div>
-
-                    <textarea className="w-full text-[10px] p-2 bg-slate-50 border-none rounded-lg resize-none font-medium mb-2" rows="2" value={lead.notes || ''} onChange={(e) => saveLead({...lead, notes: e.target.value})} placeholder="Notas..." />
-
-                    <div className="grid grid-cols-2 gap-1 pt-2 border-t text-[7px] font-black">
-                      <button onClick={() => saveLead({...lead, followUp: !lead.followUp})} className={`p-1.5 rounded ${lead.followUp ? 'bg-orange-500 text-white' : 'bg-slate-50 text-slate-400'}`}>FOLLOW-UP</button>
-                      <button onClick={() => saveLead({...lead, postSale: !lead.postSale})} className={`p-1.5 rounded ${lead.postSale ? 'bg-purple-600 text-white' : 'bg-slate-50 text-slate-400'}`}>PÓS-VENDA</button>
-                      <button onClick={() => saveLead({...lead, reactivated: !lead.reactivated})} className={`p-1.5 rounded ${lead.reactivated ? 'bg-emerald-600 text-white' : 'bg-slate-50 text-slate-400'}`}>REATIVADO</button>
-                      <div className="grid grid-cols-2 gap-1">
-                        <button onClick={() => saveLead({...lead, hasCrossSell: !lead.hasCrossSell})} className={`p-1 rounded ${lead.hasCrossSell ? 'bg-blue-600 text-white' : 'bg-slate-50 text-slate-400'}`}>C</button>
-                        <button onClick={() => saveLead({...lead, hasUpSell: !lead.hasUpSell})} className={`p-1 rounded ${lead.hasUpSell ? 'bg-indigo-600 text-white' : 'bg-slate-50 text-slate-400'}`}>U</button>
-                      </div>
+                    {/* VALOR TOTAL DA COLUNA */}
+                    <div className="text-[11px] font-black text-slate-700 bg-white/50 px-2 py-1 rounded border border-white shadow-sm flex justify-between">
+                      <span className="opacity-50 uppercase text-[8px] flex items-center">Total:</span>
+                      <span>R$ {columnTotal.toLocaleString()}</span>
                     </div>
                   </div>
-                ))}
-              </div>
-            ))}
+
+                  {stageLeads.map(lead => (
+                    <div key={lead.id} className={`bg-white p-4 rounded-xl shadow-sm border mb-3 relative group transition-all ${isStale(lead.lastUpdate) && stage !== 'fechado' ? 'border-red-400 ring-2 ring-red-100' : ''}`}>
+                      <button onClick={() => deleteLead(lead.id)} className="absolute -right-2 -top-2 bg-white text-red-400 p-1 rounded-full opacity-0 group-hover:opacity-100 border shadow-sm z-10"><Trash2 size={12}/></button>
+                      
+                      <div className="flex justify-between items-center mb-2">
+                        <div className="flex items-center gap-1">
+                          <span className="text-[9px] font-black text-blue-500 uppercase bg-blue-50 px-2 py-0.5 rounded">{lead.vendor}</span>
+                          {isStale(lead.lastUpdate) && stage !== 'fechado' && <span className="bg-red-500 text-white text-[7px] font-black px-1 py-0.5 rounded animate-pulse">PARADO</span>}
+                        </div>
+                        <select className="text-[9px] font-black border-none bg-slate-100 rounded px-1" value={lead.stage} onChange={(e) => saveLead({...lead, stage: e.target.value})}>
+                          {['contato', 'orcamento', 'negociacao', 'fechado', 'perdido'].map(s => <option key={s} value={s}>{s.toUpperCase()}</option>)}
+                        </select>
+                      </div>
+
+                      <div className="font-bold text-sm mb-2">{lead.name}</div>
+                      
+                      <div className="flex items-center gap-1 mb-3">
+                        <span className="text-green-600 font-black text-xs">R$</span>
+                        <input type="number" defaultValue={lead.value} className="bg-transparent font-black text-green-600 text-xs w-20 focus:outline-none border-b border-transparent hover:border-slate-200" onBlur={(e) => updateLeadValue(lead.id, parseFloat(e.target.value))} />
+                      </div>
+
+                      <textarea className="w-full text-[10px] p-2 bg-slate-50 border-none rounded-lg resize-none font-medium mb-2" rows="2" value={lead.notes || ''} onChange={(e) => saveLead({...lead, notes: e.target.value})} placeholder="Notas..." />
+
+                      <div className="grid grid-cols-2 gap-1 pt-2 border-t text-[7px] font-black">
+                        <button onClick={() => saveLead({...lead, followUp: !lead.followUp})} className={`p-1.5 rounded ${lead.followUp ? 'bg-orange-500 text-white' : 'bg-slate-50 text-slate-400'}`}>FOLLOW-UP</button>
+                        <button onClick={() => saveLead({...lead, postSale: !lead.postSale})} className={`p-1.5 rounded ${lead.postSale ? 'bg-purple-600 text-white' : 'bg-slate-50 text-slate-400'}`}>PÓS-VENDA</button>
+                        <button onClick={() => saveLead({...lead, reactivated: !lead.reactivated})} className={`p-1.5 rounded ${lead.reactivated ? 'bg-emerald-600 text-white' : 'bg-slate-50 text-slate-400'}`}>REATIVADO</button>
+                        <div className="grid grid-cols-2 gap-1">
+                          <button onClick={() => saveLead({...lead, hasCrossSell: !lead.hasCrossSell})} className={`p-1 rounded ${lead.hasCrossSell ? 'bg-blue-600 text-white' : 'bg-slate-50 text-slate-400'}`}>C</button>
+                          <button onClick={() => saveLead({...lead, hasUpSell: !lead.hasUpSell})} className={`p-1 rounded ${lead.hasUpSell ? 'bg-indigo-600 text-white' : 'bg-slate-50 text-slate-400'}`}>U</button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
           </div>
         )}
-
         {/* MÉTRICAS / HISTÓRICO COMPLETO */}
         {activeTab === 'metrics' && (
           <div className="bg-white rounded-3xl shadow-xl border overflow-x-auto">
