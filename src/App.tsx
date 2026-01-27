@@ -193,7 +193,6 @@ export default function CRMSystem() {
             </button>
           ))}
        <button 
-              {/* BOTÃO ADICIONAR LEAD */}
           <div className="flex items-center">
             <button 
               onClick={() => setIsModalOpen(true)} 
