@@ -184,7 +184,22 @@ export default function CRMSystem() {
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             {['contato', 'orcamento', 'negociacao', 'fechado', 'perdido'].map(stage => (
               <div key={stage} className="bg-slate-200/40 p-3 rounded-2xl border-2 border-dashed border-slate-200 min-h-[500px]">
-                <h3 className="font-black text-[10px] uppercase text-slate-400 mb-4 text-center">{stage}</h3>
+                <div className="mb-4">
+  <div className="flex justify-between items-center mb-1">
+    <h3 className="font-black text-[10px] uppercase text-slate-400 tracking-tighter">{stage}</h3>
+    <span className="text-[9px] font-bold bg-slate-100 px-1.5 py-0.5 rounded text-slate-500">
+      {leads.filter(l => l.stage === stage && (Number(l.week) === currentWeek || (!l.week && currentWeek === 1))).length} leads
+    </span>
+  </div>
+  <div className="text-[11px] font-black text-slate-600">
+    Total: <span className="text-green-600">
+      R$ {leads
+        .filter(l => l.stage === stage && (Number(l.week) === currentWeek || (!l.week && currentWeek === 1)))
+        .reduce((acc, curr) => acc + (Number(curr.value) || 0), 0)
+        .toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+    </span>
+  </div>
+</div>
                 {/* FILTRO INTELIGENTE: Se lead não tem semana definida (undefined), assume 1 */}
                 {leads.filter(l => l.stage === stage && (Number(l.week) === currentWeek || (!l.week && currentWeek === 1)) && !l.isArchived).map(lead => (
                   <div key={lead.id} className={`bg-white p-4 rounded-xl shadow-sm border mb-3 space-y-3 relative group transition-all ${isStale(lead.lastUpdate) && stage !== 'fechado' ? 'border-red-400 ring-2 ring-red-100' : ''}`}>
