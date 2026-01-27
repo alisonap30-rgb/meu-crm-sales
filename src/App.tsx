@@ -192,16 +192,16 @@ export default function CRMSystem() {
               {tab === 'archive' ? 'Arquivados' : tab === 'metrics' ? 'Histórico' : tab === 'conversion' ? 'Conversão' : tab === 'commission' ? 'Comissão' : 'Pipeline'}
             </button>
           ))}
-          <button onClick={() => setIsModalOpen(true)} className="bg-blue-600 text-white p-2 rounded-full shadow-lg hover:rotate-90 transition-all ml-2"><PlusCircle size={24} /></button>
-       </div>
-          <button 
-            onClick={archiveAllLeads}
-            className="bg-red-50 text-red-600 border border-red-200 px-3 py-1.5 rounded-xl text-[10px] font-black hover:bg-red-600 hover:text-white transition-all ml-2 shadow-sm"
-          >
-            ZERAR CICLO
-          </button>
-        </div>
-      <div className="max-w-7xl mx-auto">
+         <button onClick={() => setIsModalOpen(true)} className="bg-blue-600 text-white p-2 rounded-full shadow-lg hover:rotate-90 transition-all">
+              <Plus size={20} />
+            </button>
+            <button 
+              onClick={archiveAllLeads}
+              className="bg-red-50 text-red-600 border border-red-200 px-3 py-1.5 rounded-xl text-[10px] font-black hover:bg-red-600 hover:text-white transition-all ml-2 shadow-sm"
+            >
+              ZERAR CICLO
+            </button>
+          </div>
         {/* PIPELINE */}
         {activeTab === 'pipeline' && (
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
