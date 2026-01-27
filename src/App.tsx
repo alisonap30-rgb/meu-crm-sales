@@ -203,11 +203,12 @@ export default function CRMSystem() {
               className="bg-red-50 text-red-600 border border-red-200 px-3 py-1.5 rounded-xl text-[10px] font-black hover:bg-red-600 hover:text-white transition-all ml-2 shadow-sm"
             >
               ZERAR CICLO
-            </button>
-   </div>
+           </button>
+        </div>
+      </div>
+    </div>
 
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        
+    <div className="max-w-7xl mx-auto px-4 py-6">
         {/* PIPELINE */}
         {activeTab === 'pipeline' && (
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
