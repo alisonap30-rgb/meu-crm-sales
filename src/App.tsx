@@ -32,10 +32,23 @@ export default function CRMSystem() {
       
       // Atualiza o estado local para refletir a mudança na hora
       setLeads(prev => prev.map(l => l.id === id ? { ...l, value: newValue } : l));
+    // Função para salvar o novo valor no banco de dados
+  const updateLeadValue = async (id: string, newValue: number) => {
+    try {
+      const { error } = await supabase
+        .from('leads')
+        .update({ value: newValue })
+        .eq('id', id);
+
+      if (error) throw error;
+      
+      setLeads(prev => prev.map(l => l.id === id ? { ...l, value: newValue } : l));
     } catch (error) {
       console.error('Erro ao atualizar:', error);
     }
-    const archiveAllLeads = async () => {
+  };
+
+  const archiveAllLeads = async () => {
     const confirm = window.confirm("Deseja arquivar todos os leads deste ciclo?");
     if (!confirm) return;
 
@@ -53,17 +66,6 @@ export default function CRMSystem() {
       console.error('Erro:', error);
     }
   };
-  };
-  // Metas e Dados
-  const [goals, setGoals] = useState({
-    revenue: 100000, ticket: 5000, conversion: 5, crossSell: 40, upSell: 15, 
-    contacts: 400, followUp: 90, postSale: 100, reactivated: 20
-  });
-
-  const [commissionData, setCommissionData] = useState({
-    weeks: { 1: { revenue: 0, ticket: 0 }, 2: { revenue: 0, ticket: 0 }, 3: { revenue: 0, ticket: 0 }, 4: { revenue: 0, ticket: 0 } },
-    profitMargin: 0
-  });
 
   // CARREGAMENTO INICIAL
   useEffect(() => {
@@ -191,20 +193,20 @@ export default function CRMSystem() {
             <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 rounded-xl font-black text-[10px] uppercase transition-all ${activeTab === tab ? 'bg-slate-900 text-white shadow-lg' : 'bg-white border text-slate-500 hover:bg-slate-50'}`}>
               {tab === 'archive' ? 'Arquivados' : tab === 'metrics' ? 'Histórico' : tab === 'conversion' ? 'Conversão' : tab === 'commission' ? 'Comissão' : 'Pipeline'}
             </button>
-          ))}
-       <button 
-          <div className="flex items-center">
-            <button 
-              onClick={() => setIsModalOpen(true)} 
-              className="bg-blue-600 text-white p-2 rounded-full shadow-lg hover:rotate-90 transition-all"
-            >
-              <Plus size={20} />
-            </button>
-          </div>
+         ))}
+        </div>
+        <div className="flex items-center">
+          <button 
+            onClick={() => setIsModalOpen(true)} 
+            className="bg-blue-600 text-white p-2 rounded-full shadow-lg hover:rotate-90 transition-all"
+          >
+            <PlusCircle size={20} />
+          </button>
         </div>
       </div>
+    </div>
 
-      <div className="max-w-7xl mx-auto px-4 py-6">
+    <div className="max-w-7xl mx-auto px-4 py-6">
         {/* PIPELINE */}
         {activeTab === 'pipeline' && (
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
