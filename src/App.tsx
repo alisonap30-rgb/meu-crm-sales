@@ -192,7 +192,7 @@ export default function CRMSystem() {
               {tab === 'archive' ? 'Arquivados' : tab === 'metrics' ? 'Histórico' : tab === 'conversion' ? 'Conversão' : tab === 'commission' ? 'Comissão' : 'Pipeline'}
             </button>
           ))}
-         <button onClick={() => setIsModalOpen(true)} className="bg-blue-600 text-white p-2 rounded-full shadow-lg hover:rotate-90 transition-all">
+       <button onClick={() => setIsModalOpen(true)} className="bg-blue-600 text-white p-2 rounded-full shadow-lg hover:rotate-90 transition-all">
               <Plus size={20} />
             </button>
             <button 
@@ -202,7 +202,7 @@ export default function CRMSystem() {
               ZERAR CICLO
             </button>
           </div>
-        
+        </div>
         {/* PIPELINE */}
         {activeTab === 'pipeline' && (
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
