@@ -193,6 +193,7 @@ export default function CRMSystem() {
             </button>
           ))}
        <button 
+              <button 
               onClick={() => setIsModalOpen(true)} 
               className="bg-blue-600 text-white p-2 rounded-full shadow-lg hover:rotate-90 transition-all"
             >
@@ -203,12 +204,12 @@ export default function CRMSystem() {
               className="bg-red-50 text-red-600 border border-red-200 px-3 py-1.5 rounded-xl text-[10px] font-black hover:bg-red-600 hover:text-white transition-all ml-2 shadow-sm"
             >
               ZERAR CICLO
-           </button>
+            </button>
+          </div>
+        </div>
       </div>
-      </div>
-    </div>
 
-    <div className="max-w-7xl mx-auto px-4 py-6">
+      <div className="max-w-7xl mx-auto px-4 py-6">
     
         {/* PIPELINE */}
         {activeTab === 'pipeline' && (
