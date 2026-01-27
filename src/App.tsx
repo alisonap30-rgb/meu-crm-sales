@@ -32,7 +32,7 @@ export default function CRMSystem() {
       
       // Atualiza o estado local para refletir a mudança na hora
       setLeads(prev => prev.map(l => l.id === id ? { ...l, value: newValue } : l));
-    // Função para salvar o novo valor no banco de dados
+   // Função para salvar o novo valor no banco de dados
   const updateLeadValue = async (id: string, newValue: number) => {
     try {
       const { error } = await supabase
@@ -51,17 +51,10 @@ export default function CRMSystem() {
   const archiveAllLeads = async () => {
     const confirm = window.confirm("Deseja arquivar todos os leads deste ciclo?");
     if (!confirm) return;
-
     try {
-      const { error } = await supabase
-        .from('leads')
-        .update({ isArchived: true })
-        .eq('isArchived', false);
-
+      const { error } = await supabase.from('leads').update({ isArchived: true }).eq('isArchived', false);
       if (error) throw error;
-      
       setLeads(prev => prev.map(l => ({ ...l, isArchived: true })));
-      alert("Ciclo zerado e leads arquivados!");
     } catch (error) {
       console.error('Erro:', error);
     }
@@ -195,7 +188,7 @@ export default function CRMSystem() {
             </button>
          ))}
         </div>
-        <div className="flex items-center">
+<div className="flex items-center">
           <button 
             onClick={() => setIsModalOpen(true)} 
             className="bg-blue-600 text-white p-2 rounded-full shadow-lg hover:rotate-90 transition-all"
@@ -207,6 +200,7 @@ export default function CRMSystem() {
     </div>
 
     <div className="max-w-7xl mx-auto px-4 py-6">
+
         {/* PIPELINE */}
         {activeTab === 'pipeline' && (
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
