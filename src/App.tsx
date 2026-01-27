@@ -35,6 +35,24 @@ export default function CRMSystem() {
     } catch (error) {
       console.error('Erro ao atualizar:', error);
     }
+    const archiveAllLeads = async () => {
+    const confirm = window.confirm("Deseja arquivar todos os leads deste ciclo?");
+    if (!confirm) return;
+
+    try {
+      const { error } = await supabase
+        .from('leads')
+        .update({ isArchived: true })
+        .eq('isArchived', false);
+
+      if (error) throw error;
+      
+      setLeads(prev => prev.map(l => ({ ...l, isArchived: true })));
+      alert("Ciclo zerado e leads arquivados!");
+    } catch (error) {
+      console.error('Erro:', error);
+    }
+  };
   };
   // Metas e Dados
   const [goals, setGoals] = useState({
@@ -176,6 +194,12 @@ export default function CRMSystem() {
           ))}
           <button onClick={() => setIsModalOpen(true)} className="bg-blue-600 text-white p-2 rounded-full shadow-lg hover:rotate-90 transition-all ml-2"><PlusCircle size={24} /></button>
         </div>
+     <button 
+            onClick={archiveAllLeads}
+            className="bg-red-50 text-red-600 border border-red-200 px-3 py-1.5 rounded-xl text-[10px] font-black hover:bg-red-600 hover:text-white transition-all ml-2 shadow-sm"
+          >
+            ZERAR CICLO
+          </button> 
       </div>
 
       <div className="max-w-7xl mx-auto">
