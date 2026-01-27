@@ -206,8 +206,7 @@ export default function CRMSystem() {
            </button>
         </div>
       </div>
-    </div>
-
+    
     <div className="max-w-7xl mx-auto px-4 py-6">
         {/* PIPELINE */}
         {activeTab === 'pipeline' && (
