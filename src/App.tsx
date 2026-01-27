@@ -204,10 +204,12 @@ export default function CRMSystem() {
             >
               ZERAR CICLO
            </button>
-        </div>
       </div>
-    
+      </div>
+    </div>
+
     <div className="max-w-7xl mx-auto px-4 py-6">
+    
         {/* PIPELINE */}
         {activeTab === 'pipeline' && (
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
