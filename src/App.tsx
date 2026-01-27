@@ -193,17 +193,13 @@ export default function CRMSystem() {
             </button>
           ))}
        <button 
-              <button 
+              {/* BOTÃO ADICIONAR LEAD */}
+          <div className="flex items-center">
+            <button 
               onClick={() => setIsModalOpen(true)} 
               className="bg-blue-600 text-white p-2 rounded-full shadow-lg hover:rotate-90 transition-all"
             >
               <Plus size={20} />
-            </button>
-            <button 
-              onClick={archiveAllLeads}
-              className="bg-red-50 text-red-600 border border-red-200 px-3 py-1.5 rounded-xl text-[10px] font-black hover:bg-red-600 hover:text-white transition-all ml-2 shadow-sm"
-            >
-              ZERAR CICLO
             </button>
           </div>
         </div>
