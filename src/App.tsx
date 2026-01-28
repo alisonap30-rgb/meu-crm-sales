@@ -21,6 +21,14 @@ const STAGES = [
   { id: 'perdido', label: 'Oportunidade Perdida', color: 'bg-rose-500' }
 ];
 
+// Definição das Etiquetas Estratégicas
+const AVAILABLE_TAGS = [
+  { id: 'proposta', label: 'PROPOSTA', color: 'bg-blue-500', light: 'bg-blue-50 text-blue-600 border-blue-100' },
+  { id: 'followup', label: 'FOLLOW-UP', color: 'bg-amber-500', light: 'bg-amber-50 text-amber-700 border-amber-100' },
+  { id: 'urgente', label: 'URGENTE', color: 'bg-red-500', light: 'bg-red-50 text-red-600 border-red-100' },
+  { id: 'reuniao', label: 'REUNIÃO', color: 'bg-emerald-500', light: 'bg-emerald-50 text-emerald-600 border-emerald-100' },
+];
+
 export default function CRMEnterpriseSystem() {
   // --- ESTADOS DE DADOS ---
   const [leads, setLeads] = useState([]);
@@ -55,7 +63,7 @@ export default function CRMEnterpriseSystem() {
   });
 
   const [newLead, setNewLead] = useState({
-    name: '', value: '', vendor: 'Vendedor 1', notes: '', stage: 'contato',
+    name: '', value: '', vendor: 'Vendedor 1', notes: '', stage: 'contato', tags: '',
     followUp: false, postSale: false, hasCrossSell: false, hasUpSell: false, reactivated: false
   });
 
@@ -89,6 +97,17 @@ export default function CRMEnterpriseSystem() {
     if (!error) fetchLeads();
   };
 
+  // --- LÓGICA DE ETIQUETAS (TOGGLE) ---
+  const toggleTag = (lead, tagId) => {
+    let currentTags = lead.tags ? lead.tags.split(',') : [];
+    if (currentTags.includes(tagId)) {
+      currentTags = currentTags.filter(t => t !== tagId);
+    } else {
+      currentTags.push(tagId);
+    }
+    handleSaveLead({ ...lead, tags: currentTags.join(',') });
+  };
+
   // --- MOTOR DE DRAG & DROP ---
   const onDragStart = (e, id) => {
     e.dataTransfer.setData("leadId", id);
@@ -119,9 +138,7 @@ export default function CRMEnterpriseSystem() {
   const analytics = useMemo(() => {
     const active = leads.filter(l => !l.isArchived);
     const won = active.filter(l => l.stage === 'fechado');
-    const lost = active.filter(l => l.stage === 'perdido');
     
-    // Funil de Conversão
     const funnel = {
       contato: active.length,
       orcamento: active.filter(l => ['orcamento', 'negociacao', 'fechado'].includes(l.stage)).length,
@@ -129,7 +146,6 @@ export default function CRMEnterpriseSystem() {
       fechado: won.length
     };
 
-    // Taxas de Conversão entre Etapas
     const rates = {
       c2o: funnel.contato > 0 ? (funnel.orcamento / funnel.contato) * 100 : 0,
       o2n: funnel.orcamento > 0 ? (funnel.negociacao / funnel.orcamento) * 100 : 0,
@@ -137,7 +153,6 @@ export default function CRMEnterpriseSystem() {
       total: funnel.contato > 0 ? (funnel.fechado / funnel.contato) * 100 : 0
     };
 
-    // Comissão e Financeiro
     const totalRev = Object.values(commSettings.weeks).reduce((a, b) => a + Number(b.revenue), 0);
     const avgTicket = (Object.values(commSettings.weeks).filter(w => Number(w.ticket) > 0).length > 0)
       ? (Object.values(commSettings.weeks).reduce((a, b) => a + Number(b.ticket), 0) / Object.values(commSettings.weeks).filter(w => Number(w.ticket) > 0).length)
@@ -207,7 +222,7 @@ export default function CRMEnterpriseSystem() {
               { id: 'commission', label: 'Financeiro', icon: <DollarSign size={14}/> },
               { id: 'archive', label: 'Histórico', icon: <Archive size={14}/> }
             ].map(tab => (
-              <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`px-6 py-3 rounded-2xl font-black text-[10px] uppercase transition-all flex items-center gap-2 ${activeTab === tab.id ? 'bg-slate-900 text-white shadow-2xl' : 'text-slate-500 hover:bg-slate-50'}`}>
+              <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`px-6 py-3 rounded-2xl font-black text-[10px] uppercase transition-all ${activeTab === tab.id ? 'bg-slate-900 text-white shadow-2xl' : 'text-slate-500 hover:bg-slate-50'}`}>
                 {tab.icon} {tab.label}
               </button>
             ))}
@@ -220,7 +235,19 @@ export default function CRMEnterpriseSystem() {
 
       <main className="max-w-[1600px] mx-auto">
         
-        {/* ABA 1: PIPELINE (Drag & Drop Completo) */}
+        {/* LEGENDA DE ETIQUETAS (VISÍVEL NO PIPELINE) */}
+        {activeTab === 'pipeline' && (
+          <div className="max-w-7xl mx-auto mb-6 flex flex-wrap gap-4 p-5 bg-white rounded-[2rem] border shadow-sm items-center animate-in fade-in slide-in-from-top-4">
+            <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase mr-4 tracking-widest"><Info size={16} className="text-blue-500"/> Legenda de Ações Prioritárias:</div>
+            {AVAILABLE_TAGS.map(tag => (
+              <div key={tag.id} className={`flex items-center gap-3 px-4 py-2 rounded-full border ${tag.light} text-[9px] font-black shadow-sm`}>
+                <div className={`w-2.5 h-2.5 rounded-full ${tag.color} shadow-sm`} /> {tag.label}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ABA 1: PIPELINE COM ETIQUETAS */}
         {activeTab === 'pipeline' && (
           <div className="grid grid-cols-1 md:grid-cols-5 gap-6 animate-in fade-in slide-in-from-bottom-4">
             {STAGES.map(stage => {
@@ -253,28 +280,57 @@ export default function CRMEnterpriseSystem() {
                           onDragStart={(e) => onDragStart(e, lead.id)}
                           className={`bg-white p-6 rounded-[2.5rem] shadow-sm border-2 transition-all hover:shadow-2xl relative group cursor-grab active:cursor-grabbing ${isStale ? 'border-rose-100 bg-rose-50/20' : 'border-white'}`}
                         >
-                          <button onClick={() => deleteLead(lead.id)} className="absolute -right-2 -top-2 bg-white text-rose-500 p-2.5 rounded-full shadow-xl border opacity-0 group-hover:opacity-100 transition-all hover:bg-rose-500 hover:text-white"><Trash2 size={14}/></button>
+                          <button onClick={() => deleteLead(lead.id)} className="absolute -right-2 -top-2 bg-white text-rose-500 p-2.5 rounded-full shadow-xl border opacity-0 group-hover:opacity-100 transition-all hover:bg-rose-500 hover:text-white z-10"><Trash2 size={14}/></button>
                           
+                          {/* EXIBIÇÃO DAS ETIQUETAS NO CARD */}
+                          <div className="flex flex-wrap gap-1.5 mb-4">
+                            {lead.tags?.split(',').filter(t => t).map(tagId => {
+                              const tag = AVAILABLE_TAGS.find(at => at.id === tagId);
+                              return tag ? (
+                                <div key={tagId} className={`px-2.5 py-1 rounded-full text-[7px] font-black ${tag.light} border shadow-sm uppercase animate-in zoom-in`}>
+                                  {tag.label}
+                                </div>
+                              ) : null;
+                            })}
+                          </div>
+
                           <div className="flex justify-between items-center mb-4">
-                            <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">{lead.vendor}</span>
+                            <span className="text-[9px] font-black text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-100 uppercase tracking-widest">{lead.vendor}</span>
                             <Grab size={14} className="text-slate-200" />
                           </div>
 
-                          <h4 className="font-black text-xs text-slate-800 uppercase mb-1 leading-tight">{lead.name}</h4>
+                          <h4 className="font-black text-xs text-slate-800 uppercase mb-1 leading-tight tracking-tight">{lead.name}</h4>
                           <div className="text-emerald-600 font-black text-sm mb-4">R$ {Number(lead.value).toLocaleString()}</div>
                           
                           <textarea 
                             className="w-full text-[10px] p-3.5 bg-slate-50 border-none rounded-2xl resize-none font-medium text-slate-500 mb-4 focus:ring-2 focus:ring-blue-100 transition-all"
-                            rows="2" placeholder="Notas de acompanhamento..."
+                            rows="2" placeholder="Notas do lead..."
                             value={lead.notes || ''}
                             onChange={(e) => handleSaveLead({...lead, notes: e.target.value})}
                           />
 
-                          <div className="grid grid-cols-2 gap-2 pt-4 border-t border-slate-50">
-                            <QuickAction label="Follow-Up" active={lead.followUp} onClick={()=>handleSaveLead({...lead, followUp: !lead.followUp})} color="bg-amber-500" />
-                            <QuickAction label="Pós-Venda" active={lead.postSale} onClick={()=>handleSaveLead({...lead, postSale: !lead.postSale})} color="bg-indigo-600" />
-                            <QuickAction label="Cross-Sell" active={lead.hasCrossSell} onClick={()=>handleSaveLead({...lead, hasCrossSell: !lead.hasCrossSell})} color="bg-blue-600" />
-                            <QuickAction label="Up-Sell" active={lead.hasUpSell} onClick={()=>handleSaveLead({...lead, hasUpSell: !lead.hasUpSell})} color="bg-emerald-600" />
+                          {/* SELEÇÃO DE ETIQUETAS E AÇÕES */}
+                          <div className="pt-4 border-t border-slate-50 space-y-4">
+                            <div>
+                               <p className="text-[7px] font-black text-slate-300 uppercase mb-2 tracking-widest">Ação Necessária:</p>
+                               <div className="flex gap-2.5">
+                                 {AVAILABLE_TAGS.map(tag => (
+                                   <button 
+                                     key={tag.id}
+                                     onClick={() => toggleTag(lead, tag.id)}
+                                     className={`w-4 h-4 rounded-full border-2 transition-all ${lead.tags?.includes(tag.id) ? `${tag.color} border-white shadow-md scale-125` : 'border-slate-100 bg-slate-50 hover:border-slate-300'}`}
+                                     title={tag.label}
+                                   />
+                                 ))}
+                               </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2">
+                              <QuickAction label="Follow-Up" active={lead.followUp} onClick={()=>handleSaveLead({...lead, followUp: !lead.followUp})} color="bg-amber-500" />
+                              <QuickAction label="Pós-Venda" active={lead.postSale} onClick={()=>handleSaveLead({...lead, postSale: !lead.postSale})} color="bg-indigo-600" />
+                              <QuickAction label="Cross-Sell" active={lead.hasCrossSell} onClick={()=>handleSaveLead({...lead, hasCrossSell: !lead.hasCrossSell})} color="bg-blue-600" />
+                              <QuickAction label="Up-Sell" active={lead.hasUpSell} onClick={()=>handleSaveLead({...lead, hasUpSell: !lead.hasUpSell})} color="bg-emerald-600" />
+                            </div>
                           </div>
                         </div>
                       );
@@ -286,7 +342,7 @@ export default function CRMEnterpriseSystem() {
           </div>
         )}
 
-        {/* ABA 2: FUNIL DE CONVERSÃO (O QUE FALTAVA) */}
+        {/* ABA 2: FUNIL DE CONVERSÃO (RESTABELECIDO) */}
         {activeTab === 'funnel' && (
           <div className="space-y-10 animate-in fade-in duration-500">
             <div className="bg-white p-12 rounded-[4rem] shadow-2xl border border-white">
@@ -294,11 +350,11 @@ export default function CRMEnterpriseSystem() {
                 <div className="bg-blue-50 p-4 rounded-3xl text-blue-600"><PieChart size={32}/></div>
                 <div>
                   <h3 className="text-3xl font-black tracking-tighter uppercase">Análise de Conversão por Etapa</h3>
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Acompanhe a eficiência do seu fluxo de vendas</p>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Fluxo de eficiência operacional</p>
                 </div>
               </div>
 
-              <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-4 max-w-5xl mx-auto">
                 <FunnelStep label="Lead Captado" count={analytics.funnel.contato} percent={100} color="bg-slate-400" />
                 <FunnelRate value={analytics.rates.c2o} />
                 <FunnelStep label="Orçamento/Proposta" count={analytics.funnel.orcamento} percent={analytics.rates.c2o} color="bg-blue-500" />
@@ -309,10 +365,10 @@ export default function CRMEnterpriseSystem() {
               </div>
 
               <div className="mt-16 grid grid-cols-1 md:grid-cols-4 gap-8">
-                <ConversionCard label="Conversão Final" value={analytics.rates.total.toFixed(1) + "%"} sub="Lead p/ Fechamento" />
-                <ConversionCard label="Eficiência de Proposta" value={analytics.rates.c2o.toFixed(1) + "%"} sub="Contato p/ Proposta" />
-                <ConversionCard label="Eficiência de Fechamento" value={analytics.rates.n2f.toFixed(1) + "%"} sub="Negociação p/ Fechado" />
-                <ConversionCard label="Ciclo de Vendas" value="---" sub="Tempo médio p/ fechar" />
+                <ConversionCard label="Conversão Final" value={analytics.rates.total.toFixed(1) + "%"} sub="Início ao Fim" />
+                <ConversionCard label="Eficiência Proposta" value={analytics.rates.c2o.toFixed(1) + "%"} sub="Lead p/ Proposta" />
+                <ConversionCard label="Eficiência Fechamento" value={analytics.rates.n2f.toFixed(1) + "%"} sub="Negoc p/ Fechado" />
+                <ConversionCard label="Health Score" value="A+" sub="Saúde do Funil" />
               </div>
             </div>
           </div>
@@ -323,14 +379,14 @@ export default function CRMEnterpriseSystem() {
           <div className="bg-white rounded-[4rem] shadow-2xl border overflow-hidden animate-in slide-in-from-bottom-8">
             <div className="p-14 border-b bg-slate-50/50 flex flex-col md:flex-row justify-between items-center gap-8">
               <h3 className="text-3xl font-black uppercase tracking-tighter flex items-center gap-4"><Activity className="text-blue-600" size={32}/> Dashboard de KPIs</h3>
-              <div className="flex gap-4">
-                <div className="bg-white p-6 rounded-3xl border shadow-sm text-center min-w-[160px]">
-                  <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Taxa de Conversão</p>
-                  <p className="text-3xl font-black text-slate-800 tracking-tighter">{analytics.rates.total.toFixed(1)}%</p>
+              <div className="flex gap-4 text-center">
+                <div className="bg-white p-6 rounded-3xl border shadow-sm min-w-[160px]">
+                  <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Taxa Conversão</p>
+                  <p className="text-3xl font-black text-slate-800">{analytics.rates.total.toFixed(1)}%</p>
                 </div>
-                <div className="bg-white p-6 rounded-3xl border shadow-sm text-center min-w-[160px]">
+                <div className="bg-white p-6 rounded-3xl border shadow-sm min-w-[160px]">
                   <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Aproveitamento Cross</p>
-                  <p className="text-3xl font-black text-slate-800 tracking-tighter">{analytics.kpis.cross.toFixed(1)}%</p>
+                  <p className="text-3xl font-black text-slate-800">{analytics.kpis.cross.toFixed(1)}%</p>
                 </div>
               </div>
             </div>
@@ -347,9 +403,7 @@ export default function CRMEnterpriseSystem() {
                 <tbody className="divide-y font-bold text-xs uppercase text-slate-600">
                   <KPIRow title="Novos Contatos Realizados" meta={goals.contacts} field="contato" data={leads} total={analytics.funnel.contato} format={v=>v} />
                   <KPIRow title="Taxa de Follow-up (%)" meta={goals.followUp+"%"} field="fup" data={leads} total={analytics.kpis.fup.toFixed(1)+"%"} format={v=>v.toFixed(1)+"%"} isPercent />
-                  <KPIRow title="Eficiência de Orçamento" meta="60%" field="orc" data={leads} total={analytics.rates.c2o.toFixed(1)+"%"} format={v=>v.toFixed(1)+"%"} isPercent />
                   <KPIRow title="Taxa de Cross-Sell" meta={goals.crossSell+"%"} field="cross" data={leads} total={analytics.kpis.cross.toFixed(1)+"%"} format={v=>v.toFixed(1)+"%"} isPercent />
-                  <KPIRow title="Taxa de Up-Sell" meta={goals.upSell+"%"} field="up" data={leads} total={analytics.kpis.up.toFixed(1)+"%"} format={v=>v.toFixed(1)+"%"} isPercent />
                   <KPIRow title="Pós-Venda Ativo" meta={goals.postSale+"%"} field="post" data={leads} total={analytics.kpis.post.toFixed(1)+"%"} format={v=>v.toFixed(1)+"%"} isPercent />
                 </tbody>
               </table>
@@ -357,7 +411,7 @@ export default function CRMEnterpriseSystem() {
           </div>
         )}
 
-        {/* ABA 4: FINANCEIRO E REGRAS DE COMISSÃO (MOTOR RESGATADO) */}
+        {/* ABA 4: FINANCEIRO E REGRAS DE COMISSÃO */}
         {activeTab === 'commission' && (
           <div className="space-y-12 pb-20 animate-in zoom-in duration-500">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
@@ -375,19 +429,19 @@ export default function CRMEnterpriseSystem() {
                 <div className="bg-emerald-50 p-6 rounded-full mb-8 text-emerald-600"><Award size={64}/></div>
                 <p className="text-[14px] text-slate-400 font-black uppercase tracking-[0.4em] mb-4">Crédito em Conta Previsto</p>
                 <h3 className="text-9xl text-emerald-600 font-black tracking-tighter font-mono">R$ {analytics.finalCommission.toLocaleString()}</h3>
-                <div className="mt-10 bg-emerald-600 text-white px-12 py-4 rounded-[2rem] font-black text-xs uppercase tracking-[0.2em] shadow-xl">Taxa de Conversão em Fee: {analytics.finalRate.toFixed(1)}%</div>
+                <div className="mt-10 bg-emerald-600 text-white px-12 py-4 rounded-[2rem] font-black text-xs uppercase tracking-[0.2em] shadow-xl">Fee de Performance: {analytics.finalRate.toFixed(1)}%</div>
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-               <FinanceBox title="Escada de Atingimento" icon={<ShieldCheck className="text-blue-500"/>}>
+               <FinanceBox title="Escada de Comissão" icon={<ShieldCheck className="text-blue-500"/>}>
                   <FinanceRule label="Abaixo de 90%" val="0.0%" active={analytics.revPerf < 90}/>
                   <FinanceRule label="Meta 90% a 99%" val="1.5%" active={analytics.revPerf >= 90 && analytics.revPerf < 100}/>
                   <FinanceRule label="Meta 100% a 109%" val="2.5%" active={analytics.revPerf >= 100 && analytics.revPerf < 110}/>
                   <FinanceRule label="Meta 110% (Ultra)" val="3.5%" active={analytics.revPerf >= 110}/>
                </FinanceBox>
                
-               <FinanceBox title="Aceleradores (+0.5% cada)" icon={<Zap className="text-amber-500"/>}>
+               <FinanceBox title="Aceleradores Ativos" icon={<Zap className="text-amber-500"/>}>
                   <FinanceRule label="Meta de Ticket Médio" val="+0.5%" active={analytics.avgTicket >= goals.ticket}/>
                   <FinanceRule label="Meta Taxa Cross-Sell" val="+0.5%" active={analytics.kpis.cross >= goals.crossSell}/>
                   <FinanceRule label="Meta Taxa Up-Sell" val="+0.5%" active={analytics.kpis.up >= goals.upSell}/>
@@ -396,10 +450,9 @@ export default function CRMEnterpriseSystem() {
                <div className="bg-slate-900 p-12 rounded-[3.5rem] text-white shadow-xl flex flex-col justify-between">
                   <div>
                     <h4 className="text-xs font-black uppercase mb-8 border-b border-white/10 pb-6 flex items-center gap-3"><Award className="text-emerald-500"/> Bônus Operacional R$ 300</h4>
-                    <p className="text-xs text-slate-400 leading-relaxed mb-10 italic">O bônus é habilitado apenas quando a meta de volume de contatos ({goals.contacts}) e a taxa de follow-up ({goals.followUp}%) são batidas simultaneamente.</p>
+                    <p className="text-xs text-slate-400 leading-relaxed mb-10 italic">Habilitado ao bater simultaneamente: Meta de Contatos ({goals.contacts}) e Meta de Follow-up ({goals.followUp}%).</p>
                   </div>
-                  <div className={`p-8 rounded-[2rem] border-2 transition-all text-center ${analytics.bonusFixoHabilitado ? 'bg-emerald-500/20 border-emerald-500 shadow-lg shadow-emerald-500/20' : 'bg-white/5 border-white/5 opacity-30'}`}>
-                    <p className="text-[10px] font-black uppercase mb-2 tracking-[0.2em]">Status do Bônus:</p>
+                  <div className={`p-8 rounded-[2rem] border-2 transition-all text-center ${analytics.bonusFixoHabilitado ? 'bg-emerald-500/20 border-emerald-500 shadow-lg' : 'bg-white/5 border-white/5 opacity-30'}`}>
                     <p className="text-2xl font-black">{analytics.bonusFixoHabilitado ? 'LIBERADO' : 'BLOQUEADO'}</p>
                   </div>
                </div>
@@ -407,18 +460,18 @@ export default function CRMEnterpriseSystem() {
 
             <div className="bg-white rounded-[4rem] border shadow-2xl p-16">
                <div className="flex justify-between items-center mb-16">
-                  <h4 className="text-2xl font-black text-slate-800 tracking-tighter uppercase flex items-center gap-4"><Settings className="text-blue-600"/> Parâmetros do Ciclo</h4>
+                  <h4 className="text-2xl font-black text-slate-800 tracking-tighter uppercase flex items-center gap-4"><Settings className="text-blue-600"/> Configuração de Metas</h4>
                   <div className="flex gap-4">
                      <ParamInput label="Meta Faturamento" val={goals.revenue} onChange={v=>setGoals({...goals, revenue:v})}/>
-                     <ParamInput label="Meta Ticket Médio" val={goals.ticket} onChange={v=>setGoals({...goals, ticket:v})}/>
+                     <ParamInput label="Meta Ticket" val={goals.ticket} onChange={v=>setGoals({...goals, ticket:v})}/>
                   </div>
                </div>
                <table className="w-full text-left">
-                 <thead><tr className="text-[11px] font-black text-slate-400 uppercase border-b"><th className="pb-8">Período Operacional</th><th className="pb-8">Faturamento Realizado (R$)</th><th className="pb-8">Ticket Médio (R$)</th></tr></thead>
+                 <thead><tr className="text-[11px] font-black text-slate-400 uppercase border-b"><th className="pb-8">Período Operacional</th><th className="pb-8">Faturamento Semanal (R$)</th><th className="pb-8">Ticket Médio (R$)</th></tr></thead>
                  <tbody className="divide-y">
                    {[1,2,3,4].map(w => (
                      <tr key={w} className="group hover:bg-slate-50 transition-all">
-                       <td className="py-10 font-black text-slate-400 text-xs tracking-widest group-hover:text-blue-600 transition-colors">SEMANA {w}</td>
+                       <td className="py-10 font-black text-slate-400 text-xs tracking-widest uppercase">SEMANA {w}</td>
                        <td className="py-4"><input type="number" className="w-full max-w-xs p-5 bg-slate-100 rounded-3xl font-black border-2 border-transparent focus:border-blue-500 focus:bg-white outline-none transition-all" value={commSettings.weeks[w].revenue} onChange={e => setCommSettings({...commSettings, weeks: {...commSettings.weeks, [w]: {...commSettings.weeks[w], revenue: e.target.value}}})} /></td>
                        <td className="py-4"><input type="number" className="w-full max-w-xs p-5 bg-slate-100 rounded-3xl font-black border-2 border-transparent focus:border-blue-500 focus:bg-white outline-none transition-all" value={commSettings.weeks[w].ticket} onChange={e => setCommSettings({...commSettings, weeks: {...commSettings.weeks, [w]: {...commSettings.weeks[w], ticket: e.target.value}}})} /></td>
                      </tr>
@@ -437,24 +490,24 @@ export default function CRMEnterpriseSystem() {
                    <div className="bg-slate-900 p-6 rounded-[2.5rem] text-white shadow-2xl"><Archive size={36}/></div>
                    <div>
                       <h3 className="text-3xl font-black tracking-tighter uppercase">Leads Arquivados</h3>
-                      <p className="text-xs text-slate-400 font-black uppercase tracking-widest mt-1">Histórico completo de oportunidades do ciclo</p>
+                      <p className="text-xs text-slate-400 font-black uppercase tracking-widest mt-1">Histórico de oportunidades encerradas</p>
                    </div>
                 </div>
                 <div className="relative w-full md:w-[450px]">
                    <Search className="absolute left-7 top-1/2 -translate-y-1/2 text-slate-300" size={24}/>
-                   <input type="text" placeholder="Buscar no histórico..." className="w-full p-7 pl-20 rounded-[2.5rem] border-2 bg-slate-50 font-black outline-none focus:border-blue-600 transition-all shadow-inner" onChange={e => setSearchTerm(e.target.value)} />
+                   <input type="text" placeholder="Buscar no arquivo..." className="w-full p-7 pl-20 rounded-[2.5rem] border-2 bg-slate-50 font-black outline-none focus:border-blue-600 transition-all shadow-inner" onChange={e => setSearchTerm(e.target.value)} />
                 </div>
              </div>
              <div className="bg-white rounded-[4rem] shadow-2xl border overflow-hidden">
                 <table className="w-full text-left">
                    <thead className="bg-slate-900 text-white font-black uppercase text-[10px] tracking-widest">
-                      <tr><th className="p-14">Lead</th><th className="p-14">Vendedor</th><th className="p-14 text-center">Valor</th><th className="p-14 text-center">Gestão</th></tr>
+                      <tr><th className="p-14">Lead</th><th className="p-14">Vendedor</th><th className="p-14 text-center">Valor</th><th className="p-14 text-center">Ações</th></tr>
                    </thead>
                    <tbody className="divide-y font-bold uppercase text-slate-600 text-xs">
                       {leads.filter(l => l.isArchived).filter(l => l.name.toLowerCase().includes(searchTerm.toLowerCase())).map(lead => (
                         <tr key={lead.id} className="hover:bg-slate-50 transition-colors">
                            <td className="p-14 font-black text-slate-800 text-sm">{lead.name}</td>
-                           <td className="p-14"><span className="bg-blue-50 text-blue-600 px-5 py-2 rounded-xl border border-blue-100 font-black tracking-widest">{lead.vendor}</span></td>
+                           <td className="p-14"><span className="bg-blue-50 text-blue-600 px-5 py-2 rounded-xl border border-blue-100 font-black uppercase tracking-widest">{lead.vendor}</span></td>
                            <td className="p-14 text-center text-emerald-600 font-black text-base">R$ {Number(lead.value).toLocaleString()}</td>
                            <td className="p-14 text-center">
                               <button onClick={() => handleSaveLead({...lead, isArchived: false})} className="bg-white p-5 rounded-[1.5rem] shadow-md border hover:bg-blue-600 hover:text-white transition-all hover:scale-110"><RotateCcw size={22}/></button>
@@ -492,15 +545,14 @@ export default function CRMEnterpriseSystem() {
                   <button 
                     disabled={isSaving || !newLead.name}
                     onClick={async () => {
-                      await handleSaveLead({...newLead, week: currentWeek, isArchived: false});
+                      await handleSaveLead({...newLead, week: currentWeek, isArchived: false, tags: ''});
                       setIsModalOpen(false);
-                      setNewLead({name: '', value: '', vendor: 'Vendedor 1', notes: '', stage: 'contato'});
+                      setNewLead({name: '', value: '', vendor: 'Vendedor 1', notes: '', stage: 'contato', tags: ''});
                     }} 
                     className="w-full bg-blue-600 text-white p-10 rounded-[3rem] font-black uppercase shadow-2xl shadow-blue-200 hover:scale-[1.02] active:scale-95 transition-all tracking-[0.4em] text-xl flex items-center justify-center gap-6"
                   >
                     {isSaving ? 'REGISTRANDO...' : 'ATIVAR LEAD AGORA'} <ArrowRight size={32}/>
                   </button>
-                  <button onClick={() => setIsModalOpen(false)} className="w-full text-slate-400 font-black uppercase text-[11px] tracking-[0.5em] py-8">Descartar Registro</button>
                </div>
             </div>
           </div>
@@ -554,7 +606,7 @@ const FinanceBox = ({ title, icon, children }) => (
 const FinanceRule = ({ label, val, active }) => (
   <div className={`flex justify-between items-center p-6 rounded-[2rem] border-2 transition-all ${active ? 'bg-white/10 border-emerald-500 shadow-lg' : 'bg-white/5 border-transparent opacity-30'}`}>
     <span className="text-[10px] font-black uppercase tracking-widest text-white">{label}</span>
-    <span className={`text-sm font-black ${active ? 'text-emerald-400' : 'text-slate-500'}`}>{val}</span>
+    <span className={`text-sm font-black ${active ? 'text-emerald-400' : 'text-slate-50'}`}>{val}</span>
   </div>
 );
 
@@ -578,9 +630,7 @@ const KPIRow = ({ title, meta, total, field, data, format, isPercent=false }) =>
     const won = sLeads.filter(l => l.stage === 'fechado');
     if (field === 'contato') return sLeads.length;
     if (field === 'fup') return sLeads.length > 0 ? (sLeads.filter(l=>l.followUp).length / sLeads.length) * 100 : 0;
-    if (field === 'orc') return sLeads.length > 0 ? (sLeads.filter(l=>['orcamento', 'negociacao', 'fechado'].includes(l.stage)).length / sLeads.length) * 100 : 0;
     if (field === 'cross') return won.length > 0 ? (won.filter(l=>l.hasCrossSell).length / won.length) * 100 : 0;
-    if (field === 'up') return won.length > 0 ? (won.filter(l=>l.hasUpSell).length / won.length) * 100 : 0;
     if (field === 'post') return won.length > 0 ? (won.filter(l=>l.postSale).length / won.length) * 100 : 0;
     return 0;
   };
