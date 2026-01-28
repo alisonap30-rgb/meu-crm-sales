@@ -71,10 +71,42 @@ export default function CRMSystem() {
     }
   };
 
-  const archiveAllLeads = async () => {
-    if (!window.confirm("Zerar ciclo e arquivar todos os leads ativos?")) return;
-    const { error } = await supabase.from('leads').update({ isArchived: true }).eq('isArchived', false);
-    if (!error) fetchLeads();
+  const handleEndCycle = async () => {
+    const firstConfirm = window.confirm("⚠️ ATENÇÃO: Você está prestes a encerrar o ciclo mensal.");
+    const secondConfirm = window.confirm("Isso irá arquivar TODOS os leads ativos e zerar os campos de faturamento para o novo mês. Confirma?");
+
+    if (firstConfirm && secondConfirm) {
+      try {
+        setLoading(true);
+        // 1. Arquiva todos os leads no Supabase
+        const { error } = await supabase
+          .from('leads')
+          .update({ isArchived: true })
+          .eq('isArchived', false);
+
+        if (error) throw error;
+
+        // 2. Reseta os dados de faturamento e ticket no estado local
+        setCommissionData({
+          weeks: { 
+            1: { revenue: 0, ticket: 0 }, 
+            2: { revenue: 0, ticket: 0 }, 
+            3: { revenue: 0, ticket: 0 }, 
+            4: { revenue: 0, ticket: 0 } 
+          },
+          profitMargin: 0
+        });
+
+        // 3. Atualiza a lista local
+        await fetchLeads();
+        
+        alert("Ciclo encerrado com sucesso! Leads movidos para o arquivo.");
+      } catch (error) {
+        alert("Erro ao encerrar ciclo: " + error.message);
+      } finally {
+        setLoading(false);
+      }
+    }
   };
 
   // HELPERS DE CÁLCULO
@@ -154,12 +186,21 @@ export default function CRMSystem() {
             ))}
           </div>
 
-          <div className="flex gap-1">
+         <div className="flex gap-1">
             {['pipeline', 'metrics', 'conversion', 'commission', 'archive'].map(tab => (
               <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 rounded-xl font-black text-[10px] uppercase transition-all ${activeTab === tab ? 'bg-slate-900 text-white shadow-lg' : 'bg-white border text-slate-500 hover:bg-slate-50'}`}>
                 {tab === 'archive' ? 'Arquivados' : tab === 'metrics' ? 'Histórico' : tab === 'conversion' ? 'Conversão' : tab === 'commission' ? 'Comissão' : 'Pipeline'}
               </button>
             ))}
+           {/* NOVO BOTÃO DE ENCERRAR CICLO */}
+            <button 
+              onClick={handleEndCycle}
+              className="ml-4 px-4 py-2 rounded-xl font-black text-[10px] uppercase bg-red-50 text-red-600 border border-red-200 hover:bg-red-600 hover:text-white transition-all flex items-center gap-2"
+              title="Encerrar mês e arquivar tudo"
+            >
+              <Archive size={14} />
+              Encerrar Ciclo
+            </button>
           </div>
 
           <button onClick={() => setIsModalOpen(true)} className="bg-blue-600 text-white p-2 rounded-full shadow-lg hover:rotate-90 transition-all ml-2">
