@@ -78,12 +78,45 @@ export default function CRMEnterpriseSystem() {
     setLoading(false);
   }, []);
 
-  useEffect(() => {
-    fetchLeads();
-    if (!supabase) return;
-    const channel = supabase.channel('crm_ultra_sync').on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, fetchLeads).subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [fetchLeads]);
+// --- BUSCA DE DADOS COM TRAVA DE SEGURANÇA ---
+useEffect(() => {
+  // Se as variáveis de ambiente falharem ou o client não iniciar, evita o crash
+  if (!supabase) {
+    console.error("Supabase client não inicializado. Verifique suas chaves VITE_.");
+    setLoading(false);
+    return;
+  }
+
+  fetchLeads();
+
+  // Nomeamos o canal de forma única para evitar conflitos de assinatura
+  const subscription = supabase.channel('leads_realtime_sync')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, fetchLeads)
+    .subscribe((status) => {
+      if (status !== 'SUBSCRIBED') {
+        console.warn("Realtime ainda não conectado...");
+      }
+    });
+
+  return () => {
+    if (supabase) supabase.removeChannel(subscription);
+  };
+}, []);
+
+// --- WRAPPER DE SEGURANÇA PARA UPSERT ---
+const handleSaveLead = async (leadData) => {
+  if (!supabase) return toast.error("Sem conexão com o banco de dados");
+  
+  const { error } = await supabase.from('leads').upsert({
+    ...leadData,
+    lastUpdate: new Date().toISOString()
+  });
+
+  if (error) {
+    console.error("Erro Supabase:", error);
+    toast.error("Erro ao salvar: " + error.message);
+  }
+};
 
   const handleSaveLead = async (leadData) => {
     if (!supabase) return;
