@@ -116,30 +116,25 @@ useEffect(() => {
 }, []);
 
 // --- WRAPPER DE SEGURANÇA PARA UPSERT ---
-const handleSaveLead = async (leadData) => {
-  if (!supabase) return toast.error("Sem conexão com o banco de dados");
+// Esta é a versão única e protegida que você deve manter
+const handleSaveLead = async (leadData: any) => {
+  // Se o banco de dados não estiver conectado, ele para aqui e não dá erro
+  if (!supabase) return; 
   
-  const { error } = await supabase.from('leads').upsert({
-    ...leadData,
-    lastUpdate: new Date().toISOString()
-  });
+  setIsSaving(true);
+  try {
+    const { error } = await supabase.from('leads').upsert({
+      ...leadData,
+      lastUpdate: new Date().toISOString()
+    });
 
-  if (error) {
-    console.error("Erro Supabase:", error);
-    toast.error("Erro ao salvar: " + error.message);
+    if (error) throw error;
+  } catch (error) {
+    console.error("Erro ao salvar lead:", error);
+  } finally {
+    setIsSaving(false);
   }
 };
-
-  // Substitua ou mantenha apenas UMA instância desta função:
-const handleSaveLead = async (leadData: any) => {
-  if (!supabase) return; // Proteção contra conexão nula
-  setIsSaving(true);
-  
-  const { error } = await supabase.from('leads').upsert({
-    ...leadData,
-    lastUpdate: new Date().toISOString()
-  });
-
   if (error) {
     console.error("Erro ao salvar:", error);
   }
