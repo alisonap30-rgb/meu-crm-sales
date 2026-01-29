@@ -80,14 +80,26 @@ export default function CRMEnterpriseSystem() {
 
 // --- BUSCA DE DADOS COM TRAVA DE SEGURANÇA ---
 useEffect(() => {
-  // Se as variáveis de ambiente falharem ou o client não iniciar, evita o crash
+  // Correção: Verifica o supabase ANTES de qualquer chamada
   if (!supabase) {
-    console.error("Supabase client não inicializado. Verifique suas chaves VITE_.");
     setLoading(false);
     return;
   }
 
+  // Agora é seguro chamar a busca de dados
   fetchLeads();
+
+  const channel = supabase.channel('crm_ultra_sync')
+    .on('postgres_changes', 
+      { event: '*', schema: 'public', table: 'leads' }, 
+      () => fetchLeads()
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}, []);
 
   // Nomeamos o canal de forma única para evitar conflitos de assinatura
   const subscription = supabase.channel('leads_realtime_sync')
@@ -118,18 +130,21 @@ const handleSaveLead = async (leadData) => {
   }
 };
 
-  const handleSaveLead = async (leadData) => {
-    if (!supabase) return;
-    setIsSaving(true);
-    const payload = { 
-      ...leadData, 
-      value: Number(leadData.value) || 0, 
-      lastUpdate: new Date().toISOString() 
-    };
-    const { error } = await supabase.from('leads').upsert(payload);
-    if (!error) fetchLeads();
-    setIsSaving(false);
-  };
+  // Substitua ou mantenha apenas UMA instância desta função:
+const handleSaveLead = async (leadData: any) => {
+  if (!supabase) return; // Proteção contra conexão nula
+  setIsSaving(true);
+  
+  const { error } = await supabase.from('leads').upsert({
+    ...leadData,
+    lastUpdate: new Date().toISOString()
+  });
+
+  if (error) {
+    console.error("Erro ao salvar:", error);
+  }
+  setIsSaving(false);
+};
 
   const deleteLead = async (id) => {
     if (!window.confirm("Deseja deletar este lead permanentemente?")) return;
