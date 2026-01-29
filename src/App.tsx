@@ -3,8 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 import { 
   TrendingUp, Layers, ArrowDownWideNarrow, BarChart, 
   DollarSign, Archive, PlusCircle, Trash2, Info, 
-  Grab, ShieldCheck, Zap, Award, Settings, 
-  Search, RotateCcw, X, ArrowRight, PieChart, Activity 
+  ShieldCheck, Zap, Award, Settings, 
+  Search, RotateCcw, X, ArrowRight
 } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 
@@ -15,17 +15,17 @@ const supabase = (supabaseUrl && supabaseAnonKey) ? createClient(supabaseUrl, su
 
 // --- CONSTANTES ---
 const STAGES = [
-  { id: 'contato', label: 'Contato' },
-  { id: 'orcamento', label: 'Orçamento' },
-  { id: 'negociacao', label: 'Negociação' },
-  { id: 'fechado', label: 'Fechado' },
-  { id: 'perdido', label: 'Perdido' }
+  { id: 'contato', label: 'Primeiro Contato' },
+  { id: 'orcamento', label: 'Orçamento/Proposta' },
+  { id: 'negociacao', label: 'Em Negociação' },
+  { id: 'fechado', label: 'Contrato Fechado' },
+  { id: 'perdido', label: 'Oportunidade Perdida' }
 ];
 
 const AVAILABLE_TAGS = [
-  { id: 'hot', label: 'Lead Quente', color: 'bg-rose-500', light: 'bg-rose-50 border-rose-100 text-rose-700' },
-  { id: 'vibe', label: 'Boa Vibe', color: 'bg-emerald-500', light: 'bg-emerald-50 border-emerald-100 text-emerald-700' },
-  { id: 'priority', label: 'Urgente', color: 'bg-amber-500', light: 'bg-amber-50 border-amber-100 text-amber-700' }
+  { id: 'hot', label: 'Lead Quente', color: 'bg-rose-500' },
+  { id: 'vibe', label: 'Boa Vibe', color: 'bg-emerald-500' },
+  { id: 'priority', label: 'Urgente', color: 'bg-amber-500' }
 ];
 
 // --- SUBCOMPONENTES DE UI ---
@@ -55,14 +55,6 @@ const FunnelRate = ({ value }) => (
   </div>
 );
 
-const ConversionCard = ({ label, value, sub }) => (
-  <div className="bg-slate-50 p-10 rounded-[3rem] border-2 border-white text-center shadow-inner">
-    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{label}</p>
-    <p className="text-4xl font-black text-slate-800 tracking-tighter mb-1">{value}</p>
-    <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">{sub}</p>
-  </div>
-);
-
 const FinanceBox = ({ title, icon, children }) => (
   <div className="bg-slate-900 p-12 rounded-[4rem] text-white shadow-xl flex flex-col h-full">
     <h4 className="text-xs font-black uppercase mb-10 border-b border-white/10 pb-8 flex items-center gap-4">{icon} {title}</h4>
@@ -74,13 +66,6 @@ const FinanceRule = ({ label, val, active }) => (
   <div className={`flex justify-between items-center p-6 rounded-[2rem] border-2 transition-all ${active ? 'bg-white/10 border-emerald-500 shadow-lg' : 'bg-white/5 border-transparent opacity-30'}`}>
     <span className="text-[10px] font-black uppercase tracking-widest text-white">{label}</span>
     <span className={`text-sm font-black ${active ? 'text-emerald-400' : 'text-slate-50'}`}>{val}</span>
-  </div>
-);
-
-const ParamInput = ({ label, val, onChange }) => (
-  <div className="flex flex-col gap-3">
-    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-6">{label}</label>
-    <input type="number" className="w-48 p-6 border-2 rounded-[2rem] font-black bg-slate-50 outline-none focus:border-blue-600 transition-all text-sm shadow-inner" value={val} onChange={e => onChange(e.target.value)} />
   </div>
 );
 
@@ -96,7 +81,6 @@ const KPIRow = ({ title, meta, total, field, data, format, isPercent = false }) 
     const won = sLeads.filter(l => l.stage === 'fechado');
     if (field === 'contato') return sLeads.length;
     if (field === 'fup') return sLeads.length > 0 ? (sLeads.filter(l => l.followUp).length / sLeads.length) * 100 : 0;
-    if (field === 'cross') return won.length > 0 ? (won.filter(l => l.hasCrossSell).length / won.length) * 100 : 0;
     if (field === 'post') return won.length > 0 ? (won.filter(l => l.postSale).length / won.length) * 100 : 0;
     return 0;
   };
@@ -109,7 +93,7 @@ const KPIRow = ({ title, meta, total, field, data, format, isPercent = false }) 
         return (
           <td key={w} className="p-14 text-center">
             <div className="flex flex-col items-center gap-3">
-              <div className={`w-4 h-4 rounded-full ${getStatusColor(v)} shadow-lg ring-4 ring-slate-100 transition-all`}></div>
+              <div className={`w-4 h-4 rounded-full ${getStatusColor(v)} shadow-lg ring-4 ring-slate-100`}></div>
               <span className="text-[11px] font-black">{format(v)}</span>
             </div>
           </td>
@@ -125,7 +109,6 @@ const KPIRow = ({ title, meta, total, field, data, format, isPercent = false }) 
   );
 };
 
-// --- COMPONENTE PRINCIPAL ---
 export default function SalesProCore() {
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -154,7 +137,6 @@ export default function SalesProCore() {
     postSale: false, hasCrossSell: false, hasUpSell: false, reactivated: false
   });
 
-  // --- DADOS E SYNC ---
   const fetchLeads = async () => {
     if (!supabase) return;
     const { data, error } = await supabase.from('leads').select('*').order('created_at', { ascending: false });
@@ -169,35 +151,37 @@ export default function SalesProCore() {
       ...leadData,
       lastUpdate: new Date().toISOString()
     });
-    if (error) toast.error("Erro ao salvar: " + error.message);
+    if (error) toast.error("Erro ao salvar no banco");
     setIsSaving(false);
   };
 
   const handleCreateLead = async () => {
-    if (!newLead.name.trim() || !newLead.value || Number(newLead.value) <= 0) {
-      toast.error('Preencha nome e valor corretamente');
+    if (!newLead.name.trim() || !newLead.value) {
+      toast.error('Preencha nome e valor');
       return;
     }
     await handleSaveLead({ ...newLead, week: currentWeek, isArchived: false });
     setIsModalOpen(false);
     setNewLead({ name: '', value: '', vendor: 'Vendedor 1', notes: '', stage: 'contato', tags: '', followUp: false, postSale: false, hasCrossSell: false, hasUpSell: false, reactivated: false });
-    toast.success("Lead ativado!");
+    toast.success("Lead ativado com sucesso!");
   };
 
   const deleteLead = async (id) => {
     if (!supabase) return;
     const { error } = await supabase.from('leads').delete().eq('id', id);
-    if (!error) toast.success("Removido");
+    if (!error) toast.success("Lead removido permanentemente");
   };
 
   useEffect(() => {
-    if (!supabase) { setLoading(false); return; }
+    if (!supabase) {
+      setLoading(false);
+      return;
+    }
     fetchLeads();
-    const sub = supabase.channel('sync').on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, fetchLeads).subscribe();
-    return () => { supabase.removeChannel(sub); };
+    const channel = supabase.channel('sync').on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, fetchLeads).subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
-  // --- ANALYTICS ---
   const analytics = useMemo(() => {
     const active = leads.filter(l => !l.isArchived);
     const won = active.filter(l => l.stage === 'fechado');
@@ -216,9 +200,9 @@ export default function SalesProCore() {
       n2f: funnel.negociacao > 0 ? (funnel.fechado / funnel.negociacao) * 100 : 0,
     };
 
-    const totalRev = Object.values(commSettings.weeks).reduce((a, b) => a + Number(b.revenue), 0);
-    const avgTicket = won.length > 0 ? won.reduce((sum, l) => sum + Number(l.value), 0) / won.length : 0;
-    const revPerf = goals.revenue > 0 ? (totalRev / goals.revenue) * 100 : 0;
+    const totalRev = won.reduce((acc, curr) => acc + (Number(curr.value) || 0), 0);
+    const avgTicket = won.length > 0 ? totalRev / won.length : 0;
+    const revPerf = (totalRev / goals.revenue) * 100;
 
     const kpis = {
       fup: active.length > 0 ? (active.filter(l => l.followUp).length / active.length) * 100 : 0,
@@ -236,15 +220,19 @@ export default function SalesProCore() {
     const finalCommission = (totalRev * (finalRate / 100)) + (bonusFixoHabilitado ? 300 : 0);
 
     return { funnel, rates, totalRev, avgTicket, revPerf, kpis, finalRate, finalCommission, bonusFixoHabilitado };
-  }, [leads, goals, commSettings]);
+  }, [leads, goals]);
 
-  if (loading) return <div className="h-screen bg-slate-900 flex items-center justify-center font-black text-blue-500 italic animate-pulse">BOOTING CRM ULTRA...</div>;
+  if (loading) return (
+    <div className="h-screen bg-slate-900 flex items-center justify-center font-black text-blue-500 italic animate-pulse">
+      BOOTING CRM ULTRA SYSTEM...
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-[#F1F5F9] p-4 md:p-8 font-sans">
       <Toaster position="top-right" richColors />
       
-      {/* HEADER */}
+      {/* HEADER DINÂMICO */}
       <header className="max-w-[1600px] mx-auto mb-10 flex flex-col xl:flex-row justify-between items-center gap-8">
         <div className="flex items-center gap-6">
           <div className="bg-slate-900 p-5 rounded-[2.5rem] shadow-2xl">
@@ -253,7 +241,7 @@ export default function SalesProCore() {
           <div>
             <h1 className="text-4xl font-black tracking-tighter text-slate-900 italic">SALES<span className="text-blue-600">PRO</span> CORE</h1>
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] flex items-center gap-2">
-              <span className="w-2 h-2 bg-emerald-500 rounded-full"></span> Multi-Cycle Control System
+              <span className="w-2 h-2 bg-emerald-500 rounded-full animate-ping"></span> Real-time Sync Active
             </p>
           </div>
         </div>
@@ -261,7 +249,7 @@ export default function SalesProCore() {
         <div className="flex flex-wrap justify-center gap-3 bg-white p-3 rounded-[3rem] shadow-xl border border-white">
           <div className="flex bg-slate-100 p-1.5 rounded-2xl mr-4">
             {[1, 2, 3, 4].map(w => (
-              <button key={w} onClick={() => setCurrentWeek(w)} className={`px-5 py-2.5 rounded-xl font-black text-xs transition-all ${currentWeek === w ? 'bg-white text-blue-600 shadow-md' : 'text-slate-400'}`}>
+              <button key={w} onClick={() => setCurrentWeek(w)} className={`px-5 py-2.5 rounded-xl font-black text-xs transition-all ${currentWeek === w ? 'bg-white text-blue-600 shadow-md' : 'text-slate-400 hover:text-slate-600'}`}>
                 S{w}
               </button>
             ))}
@@ -270,11 +258,11 @@ export default function SalesProCore() {
             {[
               { id: 'pipeline', label: 'Pipeline', icon: <Layers size={14}/> },
               { id: 'funnel', label: 'Funil', icon: <ArrowDownWideNarrow size={14}/> },
-              { id: 'metrics', label: 'KPIs', icon: <BarChart size={14}/> },
+              { id: 'metrics', label: 'Indicadores', icon: <BarChart size={14}/> },
               { id: 'commission', label: 'Financeiro', icon: <DollarSign size={14}/> },
-              { id: 'archive', label: 'Histórico', icon: <Archive size={14}/> }
+              { id: 'archive', label: 'Arquivo', icon: <Archive size={14}/> }
             ].map(tab => (
-              <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`px-6 py-3 rounded-2xl font-black text-[10px] uppercase transition-all ${activeTab === tab.id ? 'bg-slate-900 text-white shadow-2xl' : 'text-slate-500'}`}>
+              <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`px-6 py-3 rounded-2xl font-black text-[10px] uppercase transition-all ${activeTab === tab.id ? 'bg-slate-900 text-white shadow-2xl' : 'text-slate-500 hover:bg-slate-50'}`}>
                 <span className="flex items-center gap-2">{tab.icon} {tab.label}</span>
               </button>
             ))}
@@ -288,7 +276,7 @@ export default function SalesProCore() {
       <main className="max-w-[1600px] mx-auto">
         {/* VIEW: PIPELINE */}
         {activeTab === 'pipeline' && (
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-6 animate-in fade-in">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-6 animate-in fade-in duration-500">
             {STAGES.map(stage => {
               const stageLeads = leads.filter(l => l.stage === stage.id && Number(l.week) === currentWeek && !l.isArchived);
               const columnValue = stageLeads.reduce((acc, curr) => acc + (Number(curr.value) || 0), 0);
@@ -303,11 +291,12 @@ export default function SalesProCore() {
                       <h3 className="font-black text-[10px] uppercase text-slate-400 tracking-[0.2em] mb-1">{stage.label}</h3>
                       <p className="text-xl font-black text-slate-800 tracking-tighter">R$ {columnValue.toLocaleString()}</p>
                     </div>
+                    <span className="bg-white px-3 py-1 rounded-full text-[10px] font-black text-slate-400 shadow-sm border border-slate-100">{stageLeads.length}</span>
                   </div>
                   <div className="space-y-5">
                     {stageLeads.map(lead => (
-                      <div key={lead.id} draggable onDragStart={(e) => e.dataTransfer.setData("leadId", lead.id)} className="bg-white p-6 rounded-[2.5rem] shadow-sm border-2 border-white hover:shadow-2xl relative group cursor-grab active:cursor-grabbing">
-                        <button onClick={() => deleteLead(lead.id)} className="absolute -right-2 -top-2 bg-white text-rose-500 p-2 rounded-full shadow-xl border opacity-0 group-hover:opacity-100"><Trash2 size={12}/></button>
+                      <div key={lead.id} draggable onDragStart={(e) => e.dataTransfer.setData("leadId", lead.id)} className="bg-white p-6 rounded-[2.5rem] shadow-sm border-2 border-white hover:shadow-2xl relative group cursor-grab active:cursor-grabbing transition-all">
+                        <button onClick={() => deleteLead(lead.id)} className="absolute -right-2 -top-2 bg-white text-rose-500 p-2 rounded-full shadow-xl border opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={12}/></button>
                         <h4 className="font-black text-xs text-slate-800 uppercase mb-1">{lead.name}</h4>
                         <div className="text-emerald-600 font-black text-sm mb-4">R$ {Number(lead.value).toLocaleString()}</div>
                         <div className="grid grid-cols-2 gap-2 mb-4">
@@ -318,10 +307,7 @@ export default function SalesProCore() {
                            <button onClick={() => handleSaveLead({...lead, isArchived: true})} className="text-[9px] font-black text-slate-300 hover:text-slate-600 uppercase">Arquivar</button>
                            <div className="flex gap-1">
                              {AVAILABLE_TAGS.map(tag => (
-                               <div key={tag.id} onClick={() => {
-                                 const tags = lead.tags?.includes(tag.id) ? lead.tags.replace(tag.id, '') : (lead.tags || '') + tag.id;
-                                 handleSaveLead({...lead, tags});
-                               }} className={`w-3 h-3 rounded-full cursor-pointer ${lead.tags?.includes(tag.id) ? tag.color : 'bg-slate-100'}`} />
+                               <div key={tag.id} className={`w-3 h-3 rounded-full ${lead.tags?.includes(tag.id) ? tag.color : 'bg-slate-100 hover:bg-slate-200'}`} />
                              ))}
                            </div>
                         </div>
@@ -334,96 +320,104 @@ export default function SalesProCore() {
           </div>
         )}
 
-        {/* VIEW: FUNIL */}
+        {/* VIEW: FUNIL E KPIS INTEGRADOS */}
         {activeTab === 'funnel' && (
           <div className="max-w-4xl mx-auto space-y-2 animate-in slide-in-from-bottom-10">
-            <FunnelStep label="Contatos Realizados" count={analytics.funnel.contato} percent={100} color="bg-slate-900" />
+            <FunnelStep label="Primeiros Contatos" count={analytics.funnel.contato} percent={100} color="bg-slate-900" />
             <FunnelRate value={analytics.rates.c2o} />
-            <FunnelStep label="Orçamentos Gerados" count={analytics.funnel.orcamento} percent={analytics.rates.c2o} color="bg-blue-600" />
+            <FunnelStep label="Propostas Geradas" count={analytics.funnel.orcamento} percent={analytics.rates.c2o} color="bg-blue-600" />
             <FunnelRate value={analytics.rates.o2n} />
-            <FunnelStep label="Em Negociação" count={analytics.funnel.negociacao} percent={analytics.rates.o2n * (analytics.rates.c2o/100)} color="bg-indigo-600" />
+            <FunnelStep label="Negociações Ativas" count={analytics.funnel.negociacao} percent={analytics.rates.o2n * (analytics.rates.c2o/100)} color="bg-indigo-600" />
             <FunnelRate value={analytics.rates.n2f} />
-            <FunnelStep label="Vendas Fechadas" count={analytics.funnel.fechado} percent={analytics.rates.total} color="bg-emerald-500" />
+            <FunnelStep label="Vendas Ganhas" count={analytics.funnel.fechado} percent={analytics.rates.total} color="bg-emerald-500" />
+            
             <div className="grid grid-cols-3 gap-6 mt-20">
-              <ConversionCard label="Conversão Geral" value={`${analytics.rates.total.toFixed(1)}%`} sub="Contato > Fechado" />
-              <ConversionCard label="Eficiência Comercial" value={`${analytics.rates.n2f.toFixed(1)}%`} sub="Negociação > Fechado" />
-              <ConversionCard label="Aproveitamento" value={`${analytics.rates.c2o.toFixed(1)}%`} sub="Contato > Orçamento" />
+               <div className="bg-white p-10 rounded-[3rem] text-center shadow-xl border-t-8 border-blue-600">
+                  <p className="text-[10px] font-black text-slate-400 uppercase mb-2">Conversão Geral</p>
+                  <p className="text-4xl font-black">{analytics.rates.total.toFixed(1)}%</p>
+               </div>
+               <div className="bg-white p-10 rounded-[3rem] text-center shadow-xl border-t-8 border-emerald-500">
+                  <p className="text-[10px] font-black text-slate-400 uppercase mb-2">Eficiência Comercial</p>
+                  <p className="text-4xl font-black">{analytics.rates.n2f.toFixed(1)}%</p>
+               </div>
+               <div className="bg-white p-10 rounded-[3rem] text-center shadow-xl border-t-8 border-indigo-500">
+                  <p className="text-[10px] font-black text-slate-400 uppercase mb-2">Engajamento Lead</p>
+                  <p className="text-4xl font-black">{analytics.rates.c2o.toFixed(1)}%</p>
+               </div>
             </div>
           </div>
         )}
 
-        {/* VIEW: KPIS */}
+        {/* VIEW: INDICADORES TÉCNICOS */}
         {activeTab === 'metrics' && (
-          <div className="bg-white rounded-[4rem] shadow-2xl border overflow-hidden animate-in zoom-in-95">
+          <div className="bg-white rounded-[4rem] shadow-2xl border overflow-hidden animate-in zoom-in-95 duration-500">
              <table className="w-full">
                 <thead className="bg-slate-900 text-white font-black uppercase text-[10px] tracking-widest">
                    <tr>
-                      <th className="p-14 text-left">Indicador Estratégico</th>
+                      <th className="p-14 text-left">Fator Crítico de Sucesso</th>
                       <th className="p-14">Meta</th>
-                      <th className="p-14">Sem 1</th>
-                      <th className="p-14">Sem 2</th>
-                      <th className="p-14">Sem 3</th>
-                      <th className="p-14">Sem 4</th>
-                      <th className="p-14 bg-blue-600">Total</th>
+                      <th className="p-14">Semana 1</th>
+                      <th className="p-14">Semana 2</th>
+                      <th className="p-14">Semana 3</th>
+                      <th className="p-14">Semana 4</th>
+                      <th className="p-14 bg-blue-600">Total Mensal</th>
                    </tr>
                 </thead>
                 <tbody className="divide-y">
-                   <KPIRow title="Novos Contatos" meta={goals.contacts} total={analytics.funnel.contato} field="contato" data={leads} format={v => v} />
-                   <KPIRow title="Taxa de Follow-up" meta={`${goals.followUp}%`} total={`${analytics.kpis.fup.toFixed(1)}%`} field="fup" data={leads} format={v => `${v.toFixed(0)}%`} isPercent />
-                   <KPIRow title="Taxa de Pós-Venda" meta={`${goals.postSale}%`} total={`${analytics.kpis.post.toFixed(1)}%`} field="post" data={leads} format={v => `${v.toFixed(0)}%`} isPercent />
-                   <KPIRow title="Cross-Sell (Vendas)" meta={`${goals.crossSell}%`} total={`${analytics.kpis.cross.toFixed(1)}%`} field="cross" data={leads} format={v => `${v.toFixed(0)}%`} isPercent />
+                   <KPIRow title="Novos Contatos Realizados" meta={goals.contacts} total={analytics.funnel.contato} field="contato" data={leads} format={v => v} />
+                   <KPIRow title="Taxa de Follow-up (80%)" meta={`${goals.followUp}%`} total={`${analytics.kpis.fup.toFixed(1)}%`} field="fup" data={leads} format={v => `${v.toFixed(0)}%`} isPercent />
+                   <KPIRow title="Pós-Venda Ativo (90%)" meta={`${goals.postSale}%`} total={`${analytics.kpis.post.toFixed(1)}%`} field="post" data={leads} format={v => `${v.toFixed(0)}%`} isPercent />
+                   <KPIRow title="Oportunidades Reativadas" meta={goals.reactivated} total={leads.filter(l => l.reactivated).length} field="react" data={leads} format={v => v} />
                 </tbody>
              </table>
           </div>
         )}
 
-        {/* VIEW: FINANCEIRO */}
+        {/* VIEW: FINANCEIRO E REGRAS DE COMISSÃO */}
         {activeTab === 'commission' && (
-          <div className="space-y-10 animate-in fade-in">
+          <div className="space-y-10 animate-in fade-in duration-500">
              <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
                 <div className="lg:col-span-2 bg-slate-900 p-16 rounded-[4.5rem] text-white shadow-2xl relative overflow-hidden">
                    <div className="relative z-10">
-                      <p className="text-blue-500 font-black uppercase tracking-[0.3em] mb-4">Receita Consolidada</p>
+                      <p className="text-blue-500 font-black uppercase tracking-[0.3em] mb-4">Receita Total Acumulada</p>
                       <h3 className="text-8xl font-black font-mono tracking-tighter mb-10">R$ {analytics.totalRev.toLocaleString()}</h3>
                       <div className="grid grid-cols-3 gap-10 pt-10 border-t border-white/10">
                          <div><p className="text-[10px] opacity-40 uppercase mb-2">Ticket Médio</p><p className="text-3xl font-black italic">R$ {analytics.avgTicket.toLocaleString()}</p></div>
-                         <div><p className="text-[10px] opacity-40 uppercase mb-2">Performance</p><p className="text-3xl font-black text-emerald-400">{analytics.revPerf.toFixed(1)}%</p></div>
-                         <div><p className="text-[10px] opacity-40 uppercase mb-2">Comissão Base</p><p className="text-3xl font-black">{analytics.finalRate.toFixed(1)}%</p></div>
+                         <div><p className="text-[10px] opacity-40 uppercase mb-2">Performance Meta</p><p className="text-3xl font-black text-emerald-400">{analytics.revPerf.toFixed(1)}%</p></div>
+                         <div><p className="text-[10px] opacity-40 uppercase mb-2">Acelerador</p><p className="text-3xl font-black">+{analytics.finalRate.toFixed(1)}%</p></div>
                       </div>
                    </div>
                 </div>
                 <div className="bg-white p-16 rounded-[4.5rem] border-[10px] border-emerald-500 shadow-2xl flex flex-col justify-center text-center">
                    <Award className="mx-auto mb-6 text-emerald-600" size={64}/>
-                   <p className="text-slate-400 font-black uppercase tracking-widest mb-2">Sua Comissão</p>
+                   <p className="text-slate-400 font-black uppercase tracking-widest mb-2">Sua Remuneração Variável</p>
                    <h3 className="text-7xl text-slate-900 font-black font-mono tracking-tighter">R$ {analytics.finalCommission.toLocaleString()}</h3>
-                   <div className={`mt-10 p-4 rounded-2xl font-black text-[10px] uppercase ${analytics.bonusFixoHabilitado ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'}`}>
-                      {analytics.bonusFixoHabilitado ? '🚀 Bônus R$ 300 Habilitado' : '🔒 Bônus Bloqueado'}
+                   <div className={`mt-10 p-4 rounded-2xl font-black text-[10px] uppercase ${analytics.bonusFixoHabilitado ? 'bg-emerald-100 text-emerald-700 ring-4 ring-emerald-50' : 'bg-slate-100 text-slate-400'}`}>
+                      {analytics.bonusFixoHabilitado ? '🚀 Bônus Especial R$ 300 Ativado' : '🔒 Travas de Bônus Pendentes'}
                    </div>
                 </div>
              </div>
              <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
-                <FinanceBox title="Regras de Aceleração" icon={<Zap size={18}/>}>
-                   <FinanceRule label="Ticket Médio > Meta" val="+ 0.5%" active={analytics.avgTicket >= goals.ticket} />
-                   <FinanceRule label="Cross-Sell > Meta" val="+ 0.5%" active={analytics.kpis.cross >= goals.crossSell} />
-                   <FinanceRule label="Up-Sell > Meta" val="+ 0.5%" active={analytics.kpis.up >= goals.upSell} />
+                <FinanceBox title="Aceleradores de Comissão" icon={<Zap size={18}/>}>
+                   <FinanceRule label="Ticket > R$ 1.500" val="+ 0.5%" active={analytics.avgTicket >= goals.ticket} />
+                   <FinanceRule label="Cross-Sell > 20%" val="+ 0.5%" active={analytics.kpis.cross >= goals.crossSell} />
+                   <FinanceRule label="Up-Sell > 15%" val="+ 0.5%" active={analytics.kpis.up >= goals.upSell} />
                 </FinanceBox>
-                <FinanceBox title="Trava de Bônus (R$ 300)" icon={<ShieldCheck size={18}/>}>
+                <FinanceBox title="Checklist de Bônus Fixo" icon={<ShieldCheck size={18}/>}>
                    <FinanceRule label="Mínimo 40 Contatos" val={analytics.funnel.contato} active={analytics.funnel.contato >= goals.contacts} />
                    <FinanceRule label="Follow-up > 80%" val={`${analytics.kpis.fup.toFixed(0)}%`} active={analytics.kpis.fup >= goals.followUp} />
                    <FinanceRule label="Pós-Venda > 90%" val={`${analytics.kpis.post.toFixed(0)}%`} active={analytics.kpis.post >= goals.postSale} />
                 </FinanceBox>
                 <div className="bg-white p-12 rounded-[4rem] border-2 shadow-xl">
-                   <h4 className="text-xs font-black uppercase mb-10 text-slate-400 flex items-center gap-4"><Settings size={18}/> Ajustar Metas Mensais</h4>
+                   <h4 className="text-xs font-black uppercase mb-10 text-slate-400 flex items-center gap-4"><Settings size={18}/> Parâmetros do Ciclo</h4>
                    <div className="space-y-6">
-                      <ParamInput label="Meta Receita (R$)" val={goals.revenue} onChange={v => setGoals({...goals, revenue: v})} />
-                      <ParamInput label="Meta Ticket (R$)" val={goals.ticket} onChange={v => setGoals({...goals, ticket: v})} />
-                      <div className="grid grid-cols-2 gap-4">
-                        {[1,2,3,4].map(w => (
-                          <div key={w}>
-                            <label className="text-[8px] font-black uppercase opacity-40 ml-4">Rev S{w}</label>
-                            <input type="number" className="w-full p-4 border rounded-xl font-black text-xs" value={commSettings.weeks[w].revenue} onChange={e => setCommSettings({...commSettings, weeks: {...commSettings.weeks, [w]: {...commSettings.weeks[w], revenue: e.target.value}}})} />
-                          </div>
-                        ))}
+                      <div className="flex flex-col gap-2">
+                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Meta Mensal (R$)</label>
+                         <input type="number" className="w-full p-6 border-2 rounded-[2rem] font-black bg-slate-50 outline-none focus:border-blue-600 transition-all shadow-inner" value={goals.revenue} onChange={e => setGoals({...goals, revenue: Number(e.target.value)})} />
+                      </div>
+                      <div className="flex flex-col gap-2">
+                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Meta Ticket Médio</label>
+                         <input type="number" className="w-full p-6 border-2 rounded-[2rem] font-black bg-slate-50 outline-none focus:border-blue-600 transition-all shadow-inner" value={goals.ticket} onChange={e => setGoals({...goals, ticket: Number(e.target.value)})} />
                       </div>
                    </div>
                 </div>
@@ -431,32 +425,50 @@ export default function SalesProCore() {
           </div>
         )}
 
-        {/* VIEW: HISTÓRICO */}
+        {/* VIEW: HISTÓRICO E ARQUIVO */}
         {activeTab === 'archive' && (
-          <div className="space-y-10 animate-in fade-in">
-             <div className="bg-white p-10 rounded-[3rem] border flex justify-between items-center">
+          <div className="space-y-10 animate-in fade-in duration-500">
+             <div className="bg-white p-10 rounded-[3rem] border flex justify-between items-center shadow-lg">
                 <div className="flex items-center gap-6">
-                   <div className="bg-slate-900 p-4 rounded-2xl text-white"><Archive size={24}/></div>
-                   <div><h3 className="text-2xl font-black uppercase italic">Leads Arquivados</h3><p className="text-[10px] text-slate-400 font-black uppercase">Histórico Encerrado</p></div>
+                   <div className="bg-slate-900 p-4 rounded-2xl text-white shadow-xl"><Archive size={24}/></div>
+                   <div>
+                      <h3 className="text-2xl font-black uppercase italic tracking-tighter">Arquivo Geral</h3>
+                      <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Memória de Operação</p>
+                   </div>
                 </div>
                 <div className="relative w-96">
                    <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300" size={18}/>
-                   <input type="text" placeholder="Buscar no arquivo..." className="w-full p-5 pl-14 rounded-2xl border bg-slate-50 font-black outline-none focus:border-blue-600" onChange={e => setSearchTerm(e.target.value)} />
+                   <input type="text" placeholder="Pesquisar no arquivo..." className="w-full p-5 pl-14 rounded-2xl border bg-slate-50 font-black outline-none focus:border-blue-600 shadow-inner transition-all" onChange={e => setSearchTerm(e.target.value)} />
                 </div>
              </div>
-             <div className="bg-white rounded-[3rem] shadow-xl border overflow-hidden">
-                <table className="w-full text-left">
+             <div className="bg-white rounded-[3rem] shadow-2xl border overflow-hidden">
+                <table className="w-full text-left border-collapse">
                    <thead className="bg-slate-50 text-slate-400 font-black uppercase text-[10px] tracking-widest border-b">
-                      <tr><th className="p-10">Lead / Empresa</th><th className="p-10">Vendedor</th><th className="p-10 text-center">Valor</th><th className="p-10 text-center">Ação</th></tr>
+                      <tr>
+                         <th className="p-10">Lead / Empresa</th>
+                         <th className="p-10 text-center">Valor Base</th>
+                         <th className="p-10 text-center">Status Final</th>
+                         <th className="p-10 text-center">Data Saída</th>
+                         <th className="p-10 text-center">Recuperar</th>
+                      </tr>
                    </thead>
-                   <tbody className="divide-y font-bold uppercase text-slate-600 text-xs">
+                   <tbody className="divide-y font-bold text-slate-600 text-xs">
                       {leads.filter(l => l.isArchived).filter(l => l.name.toLowerCase().includes(searchTerm.toLowerCase())).map(lead => (
-                        <tr key={lead.id} className="hover:bg-slate-50">
+                        <tr key={lead.id} className="hover:bg-slate-50 transition-all uppercase">
                            <td className="p-10 font-black text-slate-800">{lead.name}</td>
-                           <td className="p-10"><span className="bg-blue-50 text-blue-600 px-4 py-1 rounded-lg border border-blue-100">{lead.vendor}</span></td>
-                           <td className="p-10 text-center text-emerald-600 font-black">R$ {Number(lead.value).toLocaleString()}</td>
+                           <td className="p-10 text-center text-emerald-600 font-black font-mono">R$ {Number(lead.value).toLocaleString()}</td>
                            <td className="p-10 text-center">
-                              <button onClick={() => handleSaveLead({...lead, isArchived: false})} className="p-4 rounded-xl border hover:bg-blue-600 hover:text-white transition-all"><RotateCcw size={18}/></button>
+                              <span className={`px-4 py-1.5 rounded-full text-[9px] font-black border ${lead.stage === 'fechado' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-100'}`}>
+                                 {lead.stage === 'fechado' ? 'GANHO' : 'PERDIDO'}
+                              </span>
+                           </td>
+                           <td className="p-10 text-center opacity-40 font-mono text-[10px] italic">
+                              {new Date(lead.lastUpdate || Date.now()).toLocaleDateString()}
+                           </td>
+                           <td className="p-10 text-center">
+                              <button onClick={() => handleSaveLead({...lead, isArchived: false})} className="p-4 rounded-xl border-2 border-slate-100 hover:border-blue-600 hover:bg-blue-600 hover:text-white transition-all shadow-sm">
+                                 <RotateCcw size={18}/>
+                              </button>
                            </td>
                         </tr>
                       ))}
@@ -467,31 +479,47 @@ export default function SalesProCore() {
         )}
       </main>
 
-      {/* MODAL ADIÇÃO */}
+      {/* MODAL ADIÇÃO DE LEADS */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-xl flex items-center justify-center p-4 z-[200]">
-          <div className="bg-white rounded-[4rem] p-16 max-w-2xl w-full shadow-2xl border-t-[16px] border-blue-600 relative">
-            <button onClick={() => setIsModalOpen(false)} className="absolute top-8 right-8 text-slate-300 hover:text-rose-500"><X size={32}/></button>
-            <h2 className="text-4xl font-black mb-10 uppercase italic tracking-tighter text-slate-800">Nova Oportunidade</h2>
+        <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-xl flex items-center justify-center p-4 z-[200] animate-in fade-in duration-300">
+          <div className="bg-white rounded-[4rem] p-16 max-w-2xl w-full shadow-2xl border-t-[16px] border-blue-600 relative overflow-hidden">
+            <button onClick={() => setIsModalOpen(false)} className="absolute top-8 right-8 text-slate-300 hover:text-rose-500 hover:rotate-90 transition-all duration-300"><X size={32}/></button>
+            <h2 className="text-4xl font-black mb-10 uppercase italic tracking-tighter text-slate-800">Nova Oportunidade <span className="text-blue-600">Ultra</span></h2>
             <div className="space-y-8">
                <div className="space-y-3">
-                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-4">Nome do Lead / Empresa</label>
-                  <input className="w-full p-7 rounded-[2rem] border-2 bg-slate-50 font-black outline-none focus:border-blue-500 transition-all text-lg shadow-inner" value={newLead.name} onChange={e => setNewLead({...newLead, name: e.target.value})} placeholder="Ex: Empresa X" />
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-4 italic">Nome do Lead / Empresa</label>
+                  <input className="w-full p-7 rounded-[2rem] border-2 bg-slate-50 font-black outline-none focus:border-blue-500 transition-all text-lg shadow-inner" value={newLead.name} onChange={e => setNewLead({...newLead, name: e.target.value})} placeholder="Ex: Corporativo Internacional S.A" />
                </div>
                <div className="grid grid-cols-2 gap-8">
                   <div className="space-y-3">
-                     <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-4">Valor Estimado (R$)</label>
-                     <input type="number" className="w-full p-7 rounded-[2rem] border-2 bg-slate-50 font-black outline-none focus:border-blue-500 text-lg shadow-inner" value={newLead.value} onChange={e => setNewLead({...newLead, value: e.target.value})} placeholder="0,00" />
+                     <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-4 italic">Valor do Negócio (R$)</label>
+                     <input type="number" className="w-full p-7 rounded-[2rem] border-2 bg-slate-50 font-black outline-none focus:border-blue-500 transition-all text-lg shadow-inner" value={newLead.value} onChange={e => setNewLead({...newLead, value: e.target.value})} placeholder="0,00" />
                   </div>
                   <div className="space-y-3">
-                     <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-4">Vendedor Responsável</label>
-                     <select className="w-full p-7 rounded-[2rem] border-2 bg-slate-50 font-black outline-none focus:border-blue-500 text-lg shadow-inner appearance-none" value={newLead.vendor} onChange={e => setNewLead({...newLead, vendor: e.target.value})}>
-                        <option>Vendedor 1</option><option>Vendedor 2</option>
+                     <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-4 italic">Origem do Lead</label>
+                     <select className="w-full p-7 rounded-[2rem] border-2 bg-slate-50 font-black outline-none focus:border-blue-500 transition-all text-lg shadow-inner appearance-none" value={newLead.vendor} onChange={e => setNewLead({...newLead, vendor: e.target.value})}>
+                        <option>Vendedor 1</option>
+                        <option>Vendedor 2</option>
+                        <option>Canal Digital</option>
                      </select>
                   </div>
                </div>
-               <button disabled={isSaving || !newLead.name || !newLead.value} onClick={handleCreateLead} className="w-full bg-blue-600 text-white p-8 rounded-[2.5rem] font-black uppercase shadow-2xl hover:scale-[1.02] transition-all text-lg flex items-center justify-center gap-4 disabled:opacity-50">
-                  {isSaving ? 'PROCESSANDO...' : 'ATIVAR LEAD AGORA'} <ArrowRight size={24}/>
+               <div className="p-8 bg-blue-50 rounded-[2.5rem] border-2 border-blue-100 flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                     <div className={`p-4 rounded-full transition-all ${newLead.reactivated ? 'bg-blue-600 text-white' : 'bg-white text-slate-300'}`} onClick={() => setNewLead({...newLead, reactivated: !newLead.reactivated})}>
+                        <Activity size={24}/>
+                     </div>
+                     <div>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-blue-600 italic">Lead Reativado?</p>
+                        <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Soma bônus de reativação</p>
+                     </div>
+                  </div>
+                  <div className={`w-14 h-8 rounded-full border-2 p-1 transition-all cursor-pointer ${newLead.reactivated ? 'bg-blue-600 border-blue-600' : 'bg-slate-200 border-slate-200'}`} onClick={() => setNewLead({...newLead, reactivated: !newLead.reactivated})}>
+                     <div className={`w-5 h-5 bg-white rounded-full shadow-md transition-all ${newLead.reactivated ? 'translate-x-6' : 'translate-x-0'}`}></div>
+                  </div>
+               </div>
+               <button disabled={isSaving || !newLead.name || !newLead.value} onClick={handleCreateLead} className="w-full bg-blue-600 text-white p-8 rounded-[2.5rem] font-black uppercase shadow-2xl hover:scale-[1.02] active:scale-95 transition-all text-lg flex items-center justify-center gap-4 group">
+                  {isSaving ? 'SINCRONIZANDO...' : 'ATIVAR OPORTUNIDADE'} <ArrowRight size={24} className="group-hover:translate-x-2 transition-all"/>
                </button>
             </div>
           </div>
