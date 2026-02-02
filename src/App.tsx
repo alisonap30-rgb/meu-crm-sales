@@ -1,1134 +1,661 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { 
   TrendingUp, PlusCircle, Trash2, BarChart2, Target, AlertCircle, Archive, 
   RotateCcw, Tag as TagIcon, Info, CheckCircle2, ChevronRight, DollarSign,
   User, Calendar, FileText, ClipboardList, ShieldCheck, Zap, ArrowRight,
   Clock, Award, BarChart, Grab, Search, Filter, Settings, RefreshCw,
-  Layers, ArrowDownWideNarrow, PieChart, Activity, Gauge, MousePointer2,
-  Lock, Unlock, ChevronDown, Check, X, HelpCircle, Briefcase, Wallet, 
-  Percent, ChevronUp, AlertTriangle, Monitor, Database, Terminal, Cpu,
-  Globe, LayoutDashboard, ListChecks, ArrowRightCircle, Scale, Coins,
-  Flame, Rocket, Trophy, Star, Lightbulb, MessageSquare, BriefcaseIcon,
-  Crown, Fingerprint, Key, ShieldAlert, ZapOff, TrendingDown, MousePointerSquare,
-  FileSpreadsheet, ClipboardCheck, History, Laptop, Zap as ZapIcon, ChevronLeft,
-  FilterX, Download, Share2, Printer, Mail, Phone, ExternalLink, Minimize2, Maximize2
+  Layers, ArrowDownWideNarrow, PieChart, Activity
 } from 'lucide-react';
 
-/**
- * =============================================================================
- * SECTION 1: ESTRUTURAS DE DADOS E CONFIGURAÇÕES GLOBAIS
- * =============================================================================
- */
-
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL || "", 
-  import.meta.env.VITE_SUPABASE_ANON_KEY || ""
-);
+// --- CONFIGURAÇÃO CORE ---
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "";
+const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
+const supabase = (SUPABASE_URL && SUPABASE_KEY) ? createClient(SUPABASE_URL, SUPABASE_KEY) : null;
 
 const STAGES = [
-  { id: 'contato', label: 'Prospecção Inicial', color: 'bg-slate-400', border: 'border-slate-400', accent: 'text-slate-500', description: 'Leads recém chegados ou em primeiro contato.' },
-  { id: 'orcamento', label: 'Cotação & Orçamento', color: 'bg-blue-500', border: 'border-blue-500', accent: 'text-blue-500', description: 'Propostas técnicas enviadas para validação.' },
-  { id: 'negociacao', label: 'Negociação Ativa', color: 'bg-amber-500', border: 'border-amber-500', accent: 'text-amber-500', description: 'Ajustes finais de preço e condições comerciais.' },
-  { id: 'fechado', label: 'Venda Concluída', color: 'bg-emerald-500', border: 'border-emerald-500', accent: 'text-emerald-500', description: 'Contrato assinado e pagamento processado.' },
-  { id: 'perdido', label: 'Oportunidade Perdida', color: 'bg-rose-500', border: 'border-rose-500', accent: 'text-rose-500', description: 'Desistência ou perda para concorrência.' }
-] as const;
-
-const AVAILABLE_TAGS = [
-  { id: 'proposta', label: 'PROPOSTA ENVIADA', color: 'bg-blue-600', light: 'bg-blue-50', text: 'text-blue-700' },
-  { id: 'followup', label: 'AGUARDANDO RETORNO', color: 'bg-amber-600', light: 'bg-amber-50', text: 'text-amber-700' },
-  { id: 'urgente', label: 'PRIORIDADE ALTA', color: 'bg-red-600', light: 'bg-red-50', text: 'text-red-700' },
-  { id: 'reuniao', label: 'REUNIÃO AGENDADA', color: 'bg-emerald-600', light: 'bg-emerald-50', text: 'text-emerald-700' },
-  { id: 'parcial', label: 'PAGAMENTO PARCIAL', color: 'bg-purple-600', light: 'bg-purple-50', text: 'text-purple-700' },
-  { id: 'indica', label: 'INDICAÇÃO DIRETA', color: 'bg-indigo-600', light: 'bg-indigo-50', text: 'text-indigo-700' }
+  { id: 'contato', label: 'Primeiro Contato', color: 'bg-slate-400' },
+  { id: 'orcamento', label: 'Orçamento/Proposta', color: 'bg-blue-500' },
+  { id: 'negociacao', label: 'Em Negociação', color: 'bg-amber-500' },
+  { id: 'fechado', label: 'Contrato Fechado', color: 'bg-emerald-500' },
+  { id: 'perdido', label: 'Oportunidade Perdida', color: 'bg-rose-500' }
 ];
 
-/**
- * =============================================================================
- * SECTION 2: TYPES E INTERFACES (ESSENCIAL PARA ESTABILIDADE)
- * =============================================================================
- */
+// Definição das Etiquetas Estratégicas
+const AVAILABLE_TAGS = [
+  { id: 'proposta', label: 'PROPOSTA', color: 'bg-blue-500', light: 'bg-blue-50 text-blue-600 border-blue-100' },
+  { id: 'followup', label: 'FOLLOW-UP', color: 'bg-amber-500', light: 'bg-amber-50 text-amber-700 border-amber-100' },
+  { id: 'urgente', label: 'URGENTE', color: 'bg-red-500', light: 'bg-red-50 text-red-600 border-red-100' },
+  { id: 'reuniao', label: 'REUNIÃO', color: 'bg-emerald-500', light: 'bg-emerald-50 text-emerald-600 border-emerald-100' },
+];
 
-interface Lead {
-  id: string;
-  name: string;
-  value: number;
-  stage: string;
-  tags: string;
-  isArchived: boolean;
-  lastUpdate: string;
-  followUp: boolean;
-  hasUpSell: boolean;
-  hasCrossSell: boolean;
-  reactivated: boolean;
-  postSale: boolean;
-  notes?: string;
-  company?: string;
-  email?: string;
-  phone?: string;
-}
-
-/**
- * =============================================================================
- * SECTION 3: COMPONENTE ULTRA CRM ENTERPRISE (MÓDULO CENTRAL)
- * =============================================================================
- */
-
-export default function UltraCRMEnterprise() {
-  // ESTADOS DE DADOS
-  const [leads, setLeads] = useState<Lead[]>([]);
-  const [logs, setLogs] = useState<any[]>([]);
+export default function CRMEnterpriseSystem() {
+  // --- ESTADOS DE DADOS ---
+  const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-  
-  // ESTADOS DE INTERFACE
+  const [currentWeek, setCurrentWeek] = useState(1);
   const [activeTab, setActiveTab] = useState('pipeline');
-  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
-  const [draggedItem, setDraggedItem] = useState<string | null>(null);
-  const [notifications, setNotifications] = useState<any[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
-  // ESTADOS DE METAS (LOGICA DO ARQUIVO DOCX)
+  // --- PARAMETRIZAÇÃO DE METAS ---
   const [goals, setGoals] = useState({
-    revenue: 100000,
-    ticket: 5000,
-    contacts: 400,
-    reactivated: 8,
+    revenue: 100000, 
+    ticket: 5000, 
+    contacts: 400, 
+    followUp: 90, 
+    crossSell: 40, 
+    upSell: 15, 
+    postSale: 100, 
+    reactivated: 20, 
+    conversion: 5
   });
 
   const [commSettings, setCommSettings] = useState({
-    weeks: { 1: 0, 2: 0, 3: 0, 4: 0 },
-    profitMargin: 15,
-    taxRate: 6,
-    bonusCap: 5000
+    weeks: {
+      1: { revenue: 0, ticket: 0 },
+      2: { revenue: 0, ticket: 0 },
+      3: { revenue: 0, ticket: 0 },
+      4: { revenue: 0, ticket: 0 }
+    },
+    profitMargin: 15
   });
 
-  // ESTADO DO FORMULÁRIO
   const [newLead, setNewLead] = useState({
-    name: '',
-    value: 0,
-    stage: 'contato',
-    tags: ''
+    name: '', value: '', vendor: 'Vendedor 1', notes: '', stage: 'contato', tags: '',
+    followUp: false, postSale: false, hasCrossSell: false, hasUpSell: false, reactivated: false
   });
 
-  // REFS PARA ELEMENTOS UI
-  const scrollRef = useRef<HTMLDivElement>(null);
-
-  /**
-   * =============================================================================
-   * SECTION 4: ENGINE DE SINCRONIZAÇÃO E PERSISTÊNCIA
-   * =============================================================================
-   */
-
-  const addLog = useCallback((action: string, details: string) => {
-    const entry = {
-      id: Math.random().toString(36).substr(2, 9),
-      time: new Date().toISOString(),
-      action,
-      details
-    };
-    setLogs(prev => [entry, ...prev].slice(0, 200));
-  }, []);
-
-  const notify = (msg: string, type: 'success' | 'error' | 'info' = 'success') => {
-    const id = Date.now();
-    setNotifications(prev => [...prev, { id, msg, type }]);
-    setTimeout(() => setNotifications(prev => prev.filter(n => n.id !== id)), 5000);
-  };
-
+  // --- PERSISTÊNCIA E REALTIME ---
   const fetchLeads = useCallback(async () => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('leads')
-        .select('*')
-        .order('lastUpdate', { ascending: false });
-
-      if (error) throw error;
-      setLeads(data || []);
-      addLog("DATABASE_FETCH", "Sincronização com Supabase concluída.");
-    } catch (err: any) {
-      notify(err.message, 'error');
-      addLog("ERROR", `Falha na sincronização: ${err.message}`);
-    } finally {
-      setLoading(false);
-    }
-  }, [addLog]);
+    if (!supabase) return;
+    const { data, error } = await supabase.from('leads').select('*').order('lastUpdate', { ascending: false });
+    if (!error) setLeads(data || []);
+    setLoading(false);
+  }, []);
 
   useEffect(() => {
     fetchLeads();
+    if (!supabase) return;
+    const channel = supabase.channel('crm_ultra_sync').on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, fetchLeads).subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, [fetchLeads]);
 
-  const updateLead = async (id: string, updates: Partial<Lead>) => {
-    const previous = leads.find(l => l.id === id);
-    const payload = { ...updates, lastUpdate: new Date().toISOString() };
-    
-    // Optimistic Update
-    setLeads(prev => prev.map(l => l.id === id ? { ...l, ...payload } : l));
+  const handleSaveLead = async (leadData) => {
+    if (!supabase) return;
+    setIsSaving(true);
+    const payload = { ...leadData, value: Number(leadData.value) || 0, lastUpdate: new Date().toISOString() };
+    const { error } = await supabase.from('leads').upsert(payload);
+    if (!error) fetchLeads();
+    setIsSaving(false);
+  };
 
-    try {
-      const { error } = await supabase.from('leads').update(payload).eq('id', id);
-      if (error) throw error;
-      addLog("UPDATE", `Lead ${previous?.name} atualizado com sucesso.`);
-    } catch (err: any) {
-      // Rollback em caso de erro
-      if (previous) setLeads(prev => prev.map(l => l.id === id ? previous : l));
-      notify("Erro ao atualizar lead no servidor.", 'error');
+  const deleteLead = async (id) => {
+    if (!window.confirm("Deseja deletar este lead permanentemente?")) return;
+    const { error } = await supabase.from('leads').delete().eq('id', id);
+    if (!error) fetchLeads();
+  };
+
+  // --- LÓGICA DE ETIQUETAS (TOGGLE) ---
+  const toggleTag = (lead, tagId) => {
+    let currentTags = lead.tags ? lead.tags.split(',') : [];
+    if (currentTags.includes(tagId)) {
+      currentTags = currentTags.filter(t => t !== tagId);
+    } else {
+      currentTags.push(tagId);
+    }
+    handleSaveLead({ ...lead, tags: currentTags.join(',') });
+  };
+
+  // --- MOTOR DE DRAG & DROP ---
+  const onDragStart = (e, id) => {
+    e.dataTransfer.setData("leadId", id);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const onDragOver = (e) => {
+    e.preventDefault();
+    e.currentTarget.classList.add('bg-slate-200', 'border-blue-300');
+  };
+
+  const onDragLeave = (e) => {
+    e.preventDefault();
+    e.currentTarget.classList.remove('bg-slate-200', 'border-blue-300');
+  };
+
+  const onDrop = async (e, targetStage) => {
+    e.preventDefault();
+    e.currentTarget.classList.remove('bg-slate-200', 'border-blue-300');
+    const id = e.dataTransfer.getData("leadId");
+    const lead = leads.find(l => l.id === id);
+    if (lead && lead.stage !== targetStage) {
+      await handleSaveLead({ ...lead, stage: targetStage });
     }
   };
 
-  const handleCreateLead = async () => {
-    if (!newLead.name.trim()) return notify("Nome é obrigatório", 'error');
-
-    const leadData = {
-      ...newLead,
-      name: newLead.name.toUpperCase(),
-      lastUpdate: new Date().toISOString(),
-      isArchived: false,
-      followUp: false,
-      hasUpSell: false,
-      hasCrossSell: false,
-      reactivated: false,
-      postSale: false
-    };
-
-    try {
-      const { data, error } = await supabase.from('leads').insert([leadData]).select();
-      if (error) throw error;
-      
-      setLeads([data[0], ...leads]);
-      setIsModalOpen(false);
-      setNewLead({ name: '', value: 0, stage: 'contato', tags: '' });
-      notify("Novo lead registrado no pipeline!");
-      addLog("CREATE", `Lead ${data[0].name} criado.`);
-    } catch (err: any) {
-      notify(err.message, 'error');
-    }
-  };
-
-  const toggleTag = (lead: Lead, tagId: string) => {
-    const currentTags = lead.tags ? lead.tags.split(',').filter(t => t !== "") : [];
-    const newTags = currentTags.includes(tagId) 
-      ? currentTags.filter(t => t !== tagId) 
-      : [...currentTags, tagId];
-    
-    updateLead(lead.id, { tags: newTags.join(',') });
-  };
-
-  /**
-   * =============================================================================
-   * SECTION 5: MOTOR DE CÁLCULO FINANCEIRO E AUDITORIA (LOGICA DO DOCX)
-   * =============================================================================
-   */
-
+  // --- MOTOR DE CÁLCULO DE COMISSÕES E FUNIL ---
   const analytics = useMemo(() => {
-    const activeLeads = leads.filter(l => !l.isArchived);
-    const wonLeads = activeLeads.filter(l => l.stage === 'fechado');
-    const lostLeads = activeLeads.filter(l => l.stage === 'perdido');
+    const active = leads.filter(l => !l.isArchived);
+    const won = active.filter(l => l.stage === 'fechado');
     
-    // Faturamento das semanas (input manual do usuário no Painel de Comissão)
-    const totalRevReal = Object.values(commSettings.weeks).reduce((a, b) => a + Number(b), 0);
-    const revPerf = (totalRevReal / goals.revenue) * 100;
-
-    const kpis = {
-      revenue: totalRevReal,
-      count: activeLeads.length,
-      wonCount: wonLeads.length,
-      lostCount: lostLeads.length,
-      pipelineValue: activeLeads.reduce((acc, curr) => acc + (Number(curr.value) || 0), 0),
-      tm: wonLeads.length > 0 ? (wonLeads.reduce((acc, curr) => acc + (Number(curr.value) || 0), 0) / wonLeads.length) : 0,
-      conv: activeLeads.length > 0 ? (wonLeads.length / (wonLeads.length + lostLeads.length || 1)) * 100 : 0,
-      cross: wonLeads.length > 0 ? (wonLeads.filter(l => l.hasCrossSell).length / wonLeads.length) * 100 : 0,
-      up: wonLeads.length > 0 ? (wonLeads.filter(l => l.hasUpSell).length / wonLeads.length) * 100 : 0,
-      fup: activeLeads.filter(l => ['orcamento', 'negociacao'].includes(l.stage)).length > 0
-        ? (activeLeads.filter(l => l.followUp).length / activeLeads.filter(l => ['orcamento', 'negociacao'].includes(l.stage)).length) * 100 : 0,
-      post: wonLeads.length > 0 ? (wonLeads.filter(l => l.postSale).length / wonLeads.length) * 100 : 0,
-      react: activeLeads.filter(l => l.reactivated).length
+    const funnel = {
+      contato: active.length,
+      orcamento: active.filter(l => ['orcamento', 'negociacao', 'fechado'].includes(l.stage)).length,
+      negociacao: active.filter(l => ['negociacao', 'fechado'].includes(l.stage)).length,
+      fechado: won.length
     };
 
-    // Auditoria de Comissão (Lógica Estratégica)
-    const isMarginOk = commSettings.profitMargin >= 10; // Bloqueio de segurança se margem < 10%
-    let baseRate = 0;
+    const rates = {
+      c2o: funnel.contato > 0 ? (funnel.orcamento / funnel.contato) * 100 : 0,
+      o2n: funnel.orcamento > 0 ? (funnel.negociacao / funnel.orcamento) * 100 : 0,
+      n2f: funnel.negociacao > 0 ? (funnel.fechado / funnel.negociacao) * 100 : 0,
+      total: funnel.contato > 0 ? (funnel.fechado / funnel.contato) * 100 : 0
+    };
+
+    const totalRev = Object.values(commSettings.weeks).reduce((a, b) => a + Number(b.revenue), 0);
+    const avgTicket = (Object.values(commSettings.weeks).filter(w => Number(w.ticket) > 0).length > 0)
+      ? (Object.values(commSettings.weeks).reduce((a, b) => a + Number(b.ticket), 0) / Object.values(commSettings.weeks).filter(w => Number(w.ticket) > 0).length)
+      : 0;
+
+    const revPerf = (totalRev / goals.revenue) * 100;
     
+    let baseRate = 0;
     if (revPerf >= 110) baseRate = 3.5;
     else if (revPerf >= 100) baseRate = 2.5;
     else if (revPerf >= 90) baseRate = 1.5;
 
-    const accel = {
-      ticket: (isMarginOk && kpis.tm >= goals.ticket) ? 0.5 : 0,
-      conv: (isMarginOk && kpis.conv >= 5) ? 0.5 : 0,
-      cross: (isMarginOk && kpis.cross >= 40) ? 0.5 : 0,
-      up: (isMarginOk && kpis.up >= 15) ? 0.5 : 0
+    const kpis = {
+      cross: won.length > 0 ? (won.filter(l => l.hasCrossSell).length / won.length) * 100 : 0,
+      up: won.length > 0 ? (won.filter(l => l.hasUpSell).length / won.length) * 100 : 0,
+      post: won.length > 0 ? (won.filter(l => l.postSale).length / won.length) * 100 : 0,
+      fup: active.length > 0 ? (active.filter(l => l.followUp).length / active.length) * 100 : 0
     };
 
-    const finalRate = isMarginOk ? (baseRate + accel.ticket + accel.conv + accel.cross + accel.up) : 0;
-    
-    const comboGoals = {
-      contacts: kpis.count >= goals.contacts,
-      fup: kpis.fup >= 90,
-      post: kpis.post >= 100,
-      react: kpis.react >= goals.reactivated
-    };
+    const accelerators = (Number(commSettings.profitMargin) > 0) ? (
+      (avgTicket >= goals.ticket ? 0.5 : 0) +
+      (kpis.cross >= goals.crossSell ? 0.5 : 0) +
+      (kpis.up >= goals.upSell ? 0.5 : 0)
+    ) : 0;
 
-    const qualifiesBonus300 = isMarginOk && comboGoals.contacts && comboGoals.fup && comboGoals.post && comboGoals.react;
-    const bonusValue = qualifiesBonus300 ? 300 : 0;
-    const finalCommission = Math.min((totalRevReal * (finalRate / 100)) + bonusValue, commSettings.bonusCap);
+    const bonusFixoHabilitado = active.length >= goals.contacts && kpis.fup >= goals.followUp;
+    const finalRate = baseRate + accelerators;
+    const finalCommission = (totalRev * (finalRate / 100)) + (bonusFixoHabilitado ? 300 : 0);
 
-    return { kpis, finalRate, finalCommission, isMarginOk, comboGoals, bonusValue, revPerf, accel };
-  }, [leads, goals, commSettings]);
+    return { funnel, rates, totalRev, avgTicket, revPerf, kpis, finalRate, finalCommission, bonusFixoHabilitado };
+  }, [leads, commSettings, goals]);
 
-  /**
-   * =============================================================================
-   * SECTION 6: COMPONENTES DE INTERFACE - RENDERERS
-   * =============================================================================
-   */
-
-  const RenderPipeline = () => (
-    <div className="flex gap-10 h-full min-w-[1900px] pb-10 animate-in fade-in duration-1000">
-      {STAGES.map(stage => {
-        const stageLeads = leads.filter(l => l.stage === stage.id && !l.isArchived && l.name.toLowerCase().includes(searchTerm.toLowerCase()));
-        const stageTotal = stageLeads.reduce((acc, curr) => acc + (Number(curr.value) || 0), 0);
-        
-        return (
-          <div 
-            key={stage.id}
-            onDragOver={e => e.preventDefault()}
-            onDrop={e => {
-              const id = e.dataTransfer.getData("leadId");
-              updateLead(id, { stage: stage.id });
-              setDraggedItem(null);
-            }}
-            className={`w-[380px] flex flex-col bg-slate-200/40 rounded-[3.5rem] p-8 border-2 border-dashed transition-all duration-500 ${draggedItem ? 'border-blue-500/20 bg-blue-50/20' : 'border-transparent'}`}
-          >
-            {/* Header da Coluna */}
-            <div className="mb-10 px-4">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className={`w-3.5 h-3.5 rounded-full ${stage.color} shadow-lg shadow-${stage.color}/20`}></div>
-                  <span className="font-black uppercase text-slate-400 text-[10px] tracking-[0.2em]">{stage.label}</span>
-                </div>
-                <span className="bg-white px-4 py-1.5 rounded-full text-[11px] font-black text-slate-500 shadow-sm border border-slate-100">{stageLeads.length}</span>
-              </div>
-              <h3 className="text-4xl font-black italic text-slate-900 tracking-tighter">
-                <span className="text-sm not-italic font-bold text-slate-400 mr-2">R$</span>
-                {stageTotal.toLocaleString('pt-BR')}
-              </h3>
-              <p className="text-[9px] text-slate-400 font-bold uppercase mt-2 leading-tight">{stage.description}</p>
-            </div>
-
-            {/* Listagem de Leads */}
-            <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-6">
-              {stageLeads.map(lead => (
-                <div
-                  key={lead.id}
-                  draggable
-                  onDragStart={e => {
-                    e.dataTransfer.setData("leadId", lead.id);
-                    setDraggedItem(lead.id);
-                  }}
-                  className="bg-white p-8 rounded-[3.2rem] shadow-sm border-2 border-transparent hover:border-blue-500 hover:shadow-2xl hover:shadow-blue-500/10 transition-all cursor-grab active:cursor-grabbing group relative overflow-hidden"
-                >
-                  {/* Tags Rápidas */}
-                  <div className="flex flex-wrap gap-1 mb-6">
-                    {AVAILABLE_TAGS.map(tag => (
-                      <button
-                        key={tag.id}
-                        onClick={() => toggleTag(lead, tag.id)}
-                        className={`w-6 h-6 rounded-full border-2 transition-all ${lead.tags?.includes(tag.id) ? `${tag.color} border-white shadow-md scale-110` : 'bg-slate-50 border-slate-100 hover:border-slate-300'}`}
-                      />
-                    ))}
-                  </div>
-
-                  {/* Nome e Valor */}
-                  <div className="mb-6">
-                    <input 
-                      className="font-black text-slate-950 uppercase text-sm bg-transparent border-none w-full outline-none focus:text-blue-600 transition-colors mb-1"
-                      value={lead.name}
-                      onChange={e => updateLead(lead.id, { name: e.target.value.toUpperCase() })}
-                    />
-                    <div className="flex items-center text-emerald-600">
-                       <span className="text-xs font-black mr-1 mt-1 italic">R$</span>
-                       <input 
-                        type="number"
-                        className="bg-transparent border-none font-black italic text-3xl w-full outline-none"
-                        value={lead.value}
-                        onChange={e => updateLead(lead.id, { value: Number(e.target.value) })}
-                       />
-                    </div>
-                  </div>
-
-                  {/* Ações de Auditoria (DOCX) */}
-                  <div className="grid grid-cols-2 gap-2">
-                    <MiniActionBtn active={lead.followUp} label="FUP" onClick={() => updateLead(lead.id, { followUp: !lead.followUp })} color="bg-amber-400" />
-                    <MiniActionBtn active={lead.hasUpSell} label="UP" onClick={() => updateLead(lead.id, { hasUpSell: !lead.hasUpSell })} color="bg-purple-500" />
-                    <MiniActionBtn active={lead.hasCrossSell} label="CROSS" onClick={() => updateLead(lead.id, { hasCrossSell: !lead.hasCrossSell })} color="bg-blue-500" />
-                    <MiniActionBtn active={lead.reactivated} label="REACT" onClick={() => updateLead(lead.id, { reactivated: !lead.reactivated })} color="bg-emerald-500" />
-                    <div className="col-span-2 mt-1">
-                      <MiniActionBtn active={lead.postSale} label="PÓS-VENDA COMPLETO" onClick={() => updateLead(lead.id, { postSale: !lead.postSale })} color="bg-indigo-600" isFull />
-                    </div>
-                  </div>
-
-                  {/* Botões de Ação Ocultos */}
-                  <div className="absolute top-6 right-8 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => setSelectedLead(lead)} className="p-2 text-slate-300 hover:text-blue-600 transition-colors"><ExternalLink size={16}/></button>
-                    <button onClick={() => updateLead(lead.id, { isArchived: true })} className="p-2 text-slate-300 hover:text-rose-600 transition-colors"><Trash2 size={16}/></button>
-                  </div>
-                </div>
-              ))}
-              
-              {stageLeads.length === 0 && (
-                <div className="h-40 border-2 border-dashed border-slate-200 rounded-[3rem] flex items-center justify-center">
-                  <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Coluna Vazia</p>
-                </div>
-              )}
-            </div>
-          </div>
-        );
-      })}
+  if (loading) return (
+    <div className="h-screen bg-slate-900 flex items-center justify-center font-black text-blue-500 tracking-tighter italic animate-pulse">
+      BOOTING SALESPRO ENTERPRISE ENGINE...
     </div>
   );
-
-  const RenderCommission = () => (
-    <div className="max-w-[1500px] mx-auto space-y-12 animate-in slide-in-from-bottom-12 duration-1000">
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-        
-        {/* Painel Esquerdo: Auditoria de Comissão */}
-        <div className="lg:col-span-8 space-y-12">
-          
-          {/* Card Gigante de Remuneração */}
-          <div className={`p-24 rounded-[6rem] text-white shadow-3xl relative overflow-hidden transition-all duration-1000 ${analytics.isMarginOk ? 'bg-slate-950' : 'bg-rose-950 shadow-rose-500/20'}`}>
-            <div className="absolute -top-20 -right-20 p-40 opacity-5 rotate-12 scale-150"><ShieldCheck size={400}/></div>
-            
-            <div className="flex items-center justify-between mb-16 relative z-10">
-              <div className="flex items-center gap-4 bg-white/5 px-8 py-3 rounded-full border border-white/10">
-                <ShieldCheck className="text-blue-400" size={20}/>
-                <span className="text-[11px] font-black uppercase tracking-[0.4em]">Audit Trail v5.2</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className={`w-3 h-3 rounded-full ${analytics.isMarginOk ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500 animate-bounce'}`}></span>
-                <span className="text-[10px] font-black uppercase tracking-widest">{analytics.isMarginOk ? 'Compliance Aprovado' : 'Atenção: Margem Baixa'}</span>
-              </div>
-            </div>
-
-            <div className="relative z-10 mb-20">
-              <p className="text-slate-400 font-black uppercase tracking-[0.5em] text-[12px] mb-4">Remuneração Variável Estimada</p>
-              <h2 className="text-[11rem] font-black italic tracking-tighter leading-none drop-shadow-2xl">
-                <span className="text-4xl not-italic font-bold text-blue-600 mr-4">R$</span>
-                {analytics.finalCommission.toLocaleString('pt-BR')}
-              </h2>
-            </div>
-
-            <div className="grid grid-cols-4 gap-12 pt-20 border-t border-white/5 relative z-10">
-              <AuditMetric label="Alíquota" val={`${analytics.finalRate.toFixed(2)}%`} sub="Calculada" />
-              <AuditMetric label="Bônus Fixo" val={`R$ ${analytics.bonusValue}`} sub="Combo Metas" />
-              <AuditMetric label="Faturamento" val={`R$ ${analytics.kpis.revenue.toLocaleString()}`} sub="Base de Cálculo" />
-              <AuditMetric label="Perf. Meta" val={`${analytics.revPerf.toFixed(1)}%`} sub="Meta Global" isHighlight />
-            </div>
-          </div>
-
-          {/* Grid de Aceleradores */}
-          <div className="bg-white p-20 rounded-[5rem] shadow-xl border border-slate-100">
-             <div className="flex items-center justify-between mb-16">
-                <div>
-                  <h3 className="text-4xl font-black italic uppercase tracking-tighter flex items-center gap-6">
-                    <Rocket className="text-blue-600" size={36}/> Aceleradores Financeiros
-                  </h3>
-                  <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-2 ml-14">Regras de negócio para incremento de comissão</p>
-                </div>
-                <div className="bg-slate-50 p-4 rounded-3xl border border-slate-100 flex items-center gap-4">
-                   <Info className="text-blue-500" size={20}/>
-                   <span className="text-[9px] font-black text-slate-400 uppercase max-w-[150px]">Valores acumulativos baseados na performance atual</span>
-                </div>
-             </div>
-
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                <AcceleratorCard 
-                  status={analytics.accel.ticket > 0} 
-                  label="Ticket Médio" 
-                  desc={`Alvo: R$ ${goals.ticket.toLocaleString()}`} 
-                  current={`R$ ${analytics.kpis.tm.toFixed(0)}`}
-                  bonus="+0.50%"
-                />
-                <AcceleratorCard 
-                  status={analytics.accel.conv > 0} 
-                  label="Taxa Conversão" 
-                  desc="Alvo: 5.0%" 
-                  current={`${analytics.kpis.conv.toFixed(1)}%`}
-                  bonus="+0.50%"
-                />
-                <AcceleratorCard 
-                  status={analytics.accel.cross > 0} 
-                  label="Mix Cross-Sell" 
-                  desc="Alvo: 40.0%" 
-                  current={`${analytics.kpis.cross.toFixed(1)}%`}
-                  bonus="+0.50%"
-                />
-                <AcceleratorCard 
-                  status={analytics.accel.up > 0} 
-                  label="Mix Up-Sell" 
-                  desc="Alvo: 15.0%" 
-                  current={`${analytics.kpis.up.toFixed(1)}%`}
-                  bonus="+0.50%"
-                />
-             </div>
-          </div>
-        </div>
-
-        {/* Painel Direito: Inputs de Semana */}
-        <div className="lg:col-span-4 space-y-12">
-          <div className="bg-slate-950 p-16 rounded-[5rem] text-white shadow-3xl">
-            <div className="flex items-center gap-6 mb-16">
-              <div className="bg-blue-600 p-4 rounded-3xl"><Activity size={24}/></div>
-              <h4 className="text-2xl font-black italic uppercase tracking-tighter">Realizado Semanal</h4>
-            </div>
-            
-            <div className="space-y-12">
-              {[1, 2, 3, 4].map(num => (
-                <div key={num} className="group relative">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-4 block group-focus-within:text-blue-500 transition-colors">Vendas Semana 0{num}</label>
-                  <div className="flex items-end gap-4 border-b-4 border-white/5 focus-within:border-blue-600 transition-all pb-4">
-                    <span className="text-2xl font-black text-slate-700 italic">R$</span>
-                    <input 
-                      type="number"
-                      value={commSettings.weeks[num as keyof typeof commSettings.weeks]}
-                      onChange={e => setCommSettings({...commSettings, weeks: {...commSettings.weeks, [num]: e.target.value}})}
-                      className="bg-transparent w-full font-black text-6xl outline-none"
-                      placeholder="0"
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-20 p-10 bg-white/5 rounded-[3rem] border border-white/5">
-              <div className="flex justify-between items-center mb-6">
-                 <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Total Acumulado</span>
-                 <span className="bg-blue-600 text-white px-4 py-1 rounded-full text-[9px] font-black uppercase italic">Mês Corrente</span>
-              </div>
-              <p className="text-5xl font-black italic tracking-tighter">R$ {analytics.kpis.revenue.toLocaleString('pt-BR')}</p>
-            </div>
-          </div>
-
-          <div className="bg-white p-12 rounded-[4rem] shadow-xl border border-slate-100">
-             <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] mb-10 text-center">Checklist de Bônus Combo (R$ 300)</p>
-             <div className="space-y-6">
-                <ComboItem active={analytics.comboGoals.contacts} label="Metas de Contatos" />
-                <ComboItem active={analytics.comboGoals.fup} label="Eficiência de Follow-up" />
-                <ComboItem active={analytics.comboGoals.post} label="Qualidade Pós-Venda" />
-                <ComboItem active={analytics.comboGoals.react} label="Reativação de Leads" />
-             </div>
-          </div>
-        </div>
-
-      </div>
-    </div>
-  );
-
-  const RenderMetrics = () => (
-    <div className="max-w-[1600px] mx-auto space-y-12 animate-in fade-in duration-700">
-       <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-          <MetricCard 
-            label="Volume Pipeline" 
-            val={`R$ ${analytics.kpis.pipelineValue.toLocaleString()}`} 
-            icon={<BriefcaseIcon/>} 
-            color="text-blue-500" 
-            sub={`${analytics.kpis.count} Oportunidades`}
-          />
-          <MetricCard 
-            label="Conversão Global" 
-            val={`${analytics.kpis.conv.toFixed(1)}%`} 
-            icon={<Gauge/>} 
-            color="text-emerald-500" 
-            sub="Win Rate Real"
-          />
-          <MetricCard 
-            label="Ticket Médio" 
-            val={`R$ ${analytics.kpis.tm.toFixed(0)}`} 
-            icon={<Target/>} 
-            color="text-amber-500" 
-            sub="Valor p/ Contrato"
-          />
-          <MetricCard 
-            label="Churn / Perda" 
-            val={analytics.kpis.lostCount} 
-            icon={<TrendingDown/>} 
-            color="text-rose-500" 
-            sub="Leads Descartados"
-          />
-       </div>
-
-       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mt-12">
-          <div className="bg-white p-16 rounded-[5rem] shadow-xl border border-slate-100">
-             <h3 className="text-3xl font-black italic uppercase tracking-tighter mb-16 flex items-center gap-6"><Activity className="text-blue-600"/> Funil de Conversão Auditoria</h3>
-             <div className="space-y-12">
-                <FunnelStep label="Contatos Realizados" current={analytics.kpis.count} meta={goals.contacts} color="bg-slate-400" />
-                <FunnelStep label="Eficiência FUP" current={analytics.kpis.fup} meta={90} color="bg-amber-500" isPercent />
-                <FunnelStep label="Conversão Venda" current={analytics.kpis.conv} meta={5} color="bg-emerald-500" isPercent />
-                <FunnelStep label="Reativação Ativa" current={analytics.kpis.react} meta={goals.reactivated} color="bg-purple-500" />
-             </div>
-          </div>
-
-          <div className="bg-white p-16 rounded-[5rem] shadow-xl border border-slate-100 overflow-hidden relative">
-             <div className="absolute top-10 right-10 flex gap-4">
-                <button className="p-4 bg-slate-50 rounded-2xl text-slate-400 hover:text-blue-600"><Download size={20}/></button>
-                <button className="p-4 bg-slate-50 rounded-2xl text-slate-400 hover:text-blue-600"><Share2 size={20}/></button>
-             </div>
-             <h3 className="text-3xl font-black italic uppercase tracking-tighter mb-16">Tabela de Auditoria de Batimento</h3>
-             <table className="w-full">
-                <thead className="text-[10px] font-black uppercase text-slate-400 tracking-[0.4em] border-b border-slate-100">
-                  <tr>
-                    <th className="pb-8 text-left">Indicador Estratégico</th>
-                    <th className="pb-8 text-center">Objetivo</th>
-                    <th className="pb-8 text-right">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50">
-                   <AuditRow label="Margem de Lucro Operacional" val={`${commSettings.profitMargin}%`} status={analytics.isMarginOk} />
-                   <AuditRow label="Cross-Sell (Mix de Venda)" val={`${analytics.kpis.cross.toFixed(1)}%`} status={analytics.kpis.cross >= 40} />
-                   <AuditRow label="Up-Sell (Elevação Ticket)" val={`${analytics.kpis.up.toFixed(1)}%`} status={analytics.kpis.up >= 15} />
-                   <AuditRow label="Pós-Venda (Retenção 100%)" val={`${analytics.kpis.post.toFixed(1)}%`} status={analytics.kpis.post >= 100} />
-                   <AuditRow label="Taxa de Cancelamento" val="2.4%" status={true} />
-                </tbody>
-             </table>
-          </div>
-       </div>
-    </div>
-  );
-
-  const RenderAuditLogs = () => (
-    <div className="max-w-[1400px] mx-auto animate-in slide-in-from-right-12 duration-1000">
-       <div className="bg-slate-950 rounded-[5rem] shadow-4xl overflow-hidden border border-white/5">
-          <div className="p-16 border-b border-white/5 flex items-center justify-between">
-             <div>
-               <h3 className="text-4xl font-black italic uppercase text-white tracking-tighter flex items-center gap-6">
-                 <Terminal className="text-blue-500"/> Auditoria de Sistema
-               </h3>
-               <p className="text-slate-500 text-xs font-bold uppercase tracking-[0.3em] mt-4 ml-14">Registro imutável de operações comerciais v5.2</p>
-             </div>
-             <button onClick={() => setLogs([])} className="px-8 py-4 bg-white/5 hover:bg-rose-500/20 text-slate-400 hover:text-rose-500 rounded-full transition-all text-[10px] font-black uppercase tracking-widest border border-white/10">Limpar Buffer de Memória</button>
-          </div>
-          <div className="p-8 max-h-[700px] overflow-y-auto custom-scrollbar-dark font-mono">
-             {logs.length === 0 && <div className="py-20 text-center text-slate-600 font-black uppercase tracking-widest text-xs">Nenhum evento registrado no buffer</div>}
-             {logs.map((log, idx) => (
-               <div key={log.id} className="p-6 border-b border-white/5 flex items-center gap-10 hover:bg-white/5 transition-colors group">
-                  <span className="text-[10px] text-slate-600 font-black w-24">{new Date(log.time).toLocaleTimeString()}</span>
-                  <span className={`px-4 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${log.action === 'ERROR' ? 'bg-rose-500 text-white' : 'bg-blue-600/20 text-blue-500'}`}>
-                    {log.action}
-                  </span>
-                  <span className="text-slate-400 text-xs font-bold flex-1 group-hover:text-white transition-colors">{log.details}</span>
-                  <span className="text-slate-700 text-[9px] font-black uppercase">Session ID: {log.id}</span>
-               </div>
-             ))}
-          </div>
-       </div>
-    </div>
-  );
-
-  /**
-   * =============================================================================
-   * SECTION 7: MAIN LAYOUT
-   * =============================================================================
-   */
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex overflow-hidden font-sans text-slate-900 selection:bg-blue-600 selection:text-white">
+    <div className="min-h-screen bg-[#F1F5F9] p-4 md:p-8 font-sans selection:bg-blue-600 selection:text-white">
       
-      {/* Sistema de Notificação */}
-      <div className="fixed top-10 right-10 z-[1000] space-y-4">
-        {notifications.map(n => (
-          <div key={n.id} className="bg-slate-950 text-white p-6 rounded-3xl shadow-2xl border-l-8 border-blue-600 flex items-center gap-6 animate-in slide-in-from-right-10">
-            <ZapIcon className="text-blue-500 animate-pulse" size={20}/>
-            <span className="font-black uppercase text-[10px] tracking-widest">{n.msg}</span>
+      {/* HEADER DINÂMICO */}
+      <header className="max-w-[1600px] mx-auto mb-10 flex flex-col xl:flex-row justify-between items-center gap-8">
+        <div className="flex items-center gap-6">
+          <div className="bg-slate-900 p-5 rounded-[2.5rem] shadow-2xl shadow-blue-200">
+            <TrendingUp className="text-blue-500" size={32} />
           </div>
-        ))}
-      </div>
-
-      {/* SIDEBAR GIGANTE */}
-      <aside className={`bg-slate-950 text-white transition-all duration-700 ease-out flex flex-col z-[100] border-r border-white/5 shadow-2xl ${sidebarOpen ? 'w-[420px]' : 'w-[120px]'}`}>
-        
-        {/* Logo Area */}
-        <div className="p-12 flex items-center gap-8 border-b border-white/5 relative group">
-          <div className="bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 p-5 rounded-[2.5rem] shadow-2xl shadow-blue-500/20 transform group-hover:rotate-12 transition-transform duration-500">
-            <ZapIcon size={32} className="fill-white"/>
-          </div>
-          {sidebarOpen && (
-            <div className="animate-in fade-in slide-in-from-left-4 duration-1000">
-              <h1 className="text-3xl font-black italic uppercase tracking-tighter leading-none">Ultra<span className="text-blue-500">Sales</span></h1>
-              <p className="text-[10px] font-black text-slate-500 tracking-[0.4em] uppercase mt-2">Enterprise Engine v5</p>
-            </div>
-          )}
-        </div>
-        
-        {/* Navigation Section */}
-        <nav className="p-8 flex-1 space-y-4 overflow-y-auto custom-scrollbar-dark">
-          <div className="space-y-3">
-             <SidebarBtn icon={<LayoutDashboard/>} label="Pipeline Estratégico" active={activeTab === 'pipeline'} onClick={() => setActiveTab('pipeline')} open={sidebarOpen} />
-             <SidebarBtn icon={<Coins/>} label="Painel de Comissão" active={activeTab === 'commission'} onClick={() => setActiveTab('commission')} open={sidebarOpen} />
-             <SidebarBtn icon={<PieChart/>} label="Métricas & KPIs" active={activeTab === 'metrics'} onClick={() => setActiveTab('metrics')} open={sidebarOpen} />
-             <SidebarBtn icon={<History/>} label="Log de Auditoria" active={activeTab === 'logs'} onClick={() => setActiveTab('logs')} open={sidebarOpen} />
-          </div>
-
-          {sidebarOpen && (
-            <div className="mt-20 pt-16 border-t border-white/5 space-y-16 animate-in fade-in duration-1000">
-              {/* Meta Config Group */}
-              <section>
-                <div className="flex items-center justify-between mb-10">
-                  <label className="text-[10px] font-black text-blue-500 uppercase tracking-[0.4em] block">Setup de Metas</label>
-                  <Settings size={14} className="text-slate-700 hover:text-white cursor-pointer transition-colors"/>
-                </div>
-                <div className="space-y-8">
-                  <MetaInput label="Faturamento Mensal (R$)" value={goals.revenue} onChange={v => setGoals({...goals, revenue: v})} icon={<DollarSign size={14}/>} />
-                  <MetaInput label="Ticket Médio Alvo (R$)" value={goals.ticket} onChange={v => setGoals({...goals, ticket: v})} icon={<Target size={14}/>} />
-                  <MetaInput label="Fluxo de Prospecção" value={goals.contacts} onChange={v => setGoals({...goals, contacts: v})} icon={<MousePointer2 size={14}/>} />
-                  <MetaInput label="Meta Reativação" value={goals.reactivated} onChange={v => setGoals({...goals, reactivated: v})} icon={<RotateCcw size={14}/>} />
-                </div>
-              </section>
-
-              {/* Security Group */}
-              <section className="bg-white/5 p-8 rounded-[3.5rem] border border-white/5 group hover:border-blue-500/30 transition-all duration-500">
-                <div className="flex items-center gap-4 mb-8">
-                   <div className="w-2 h-8 bg-blue-600 rounded-full group-hover:h-12 transition-all"></div>
-                   <label className="text-[10px] font-black text-white uppercase tracking-[0.3em]">Compliance</label>
-                </div>
-                <MetaInput label="Margem Mínima (%)" value={commSettings.profitMargin} onChange={v => setCommSettings({...commSettings, profitMargin: v})} isHighlight />
-              </section>
-              
-              <div className="pt-20">
-                 <div className="bg-gradient-to-tr from-slate-900 to-slate-800 p-8 rounded-[3rem] border border-white/5 text-center shadow-inner">
-                    <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">Storage Usage</p>
-                    <div className="h-1.5 w-full bg-black rounded-full mb-4 p-0.5 overflow-hidden">
-                       <div className="h-full bg-blue-600 rounded-full w-[65%] shadow-lg shadow-blue-500/20"></div>
-                    </div>
-                    <span className="text-[10px] font-black text-white">6.2GB / 10GB</span>
-                 </div>
-              </div>
-            </div>
-          )}
-        </nav>
-        
-        {/* Toggle Sidebar */}
-        <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-12 flex justify-center hover:bg-white/5 transition-all text-slate-600 hover:text-white group">
-          <div className="flex items-center gap-4">
-            <ArrowDownWideNarrow className={`transition-transform duration-700 ${sidebarOpen ? 'rotate-90' : '-rotate-90'}`} />
-            {sidebarOpen && <span className="text-[10px] font-black uppercase tracking-[0.4em]">Recolher</span>}
-          </div>
-        </button>
-      </aside>
-
-      {/* ÁREA DE CONTEÚDO PRINCIPAL */}
-      <main className="flex-1 flex flex-col overflow-hidden relative">
-        
-        {/* Header Superior */}
-        <header className="h-32 bg-white/90 backdrop-blur-3xl border-b border-slate-200 flex items-center justify-between px-16 z-50">
-          <div className="flex items-center gap-16">
-            <div className="relative group">
-              <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-blue-600 transition-colors" size={24}/>
-              <input 
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                placeholder="Pesquisar leads, propostas ou etiquetas..."
-                className="pl-16 pr-10 py-5 bg-slate-100/60 border-2 border-transparent focus:border-blue-500/20 focus:bg-white rounded-[2rem] outline-none w-[500px] font-bold text-slate-600 transition-all placeholder:text-slate-300 placeholder:font-black placeholder:uppercase placeholder:text-[10px] placeholder:tracking-widest"
-              />
-            </div>
-            
-            <div className="hidden xl:flex items-center gap-8 bg-slate-50 p-4 rounded-[1.8rem] border border-slate-100">
-               <div className="flex -space-x-3">
-                  {[1,2,3,4].map(i => (
-                    <div key={i} className="w-10 h-10 rounded-full bg-slate-200 border-4 border-white shadow-sm flex items-center justify-center text-[10px] font-black">U{i}</div>
-                  ))}
-               </div>
-               <div className="h-8 w-px bg-slate-200"></div>
-               <div className="flex items-center gap-3">
-                  <div className="w-3 h-3 bg-emerald-500 rounded-full animate-pulse"></div>
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">14 Online Now</span>
-               </div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-8">
-             <button onClick={() => fetchLeads()} className="p-5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-2xl transition-all active:scale-90">
-                <RefreshCw size={24} className={loading ? 'animate-spin' : ''}/>
-             </button>
-             <button 
-                onClick={() => setIsModalOpen(true)} 
-                className="bg-slate-950 text-white px-12 py-5 rounded-[2rem] font-black uppercase text-xs tracking-[0.2em] hover:bg-blue-600 transition-all hover:shadow-2xl hover:shadow-blue-500/40 flex items-center gap-4 active:scale-95 group"
-             >
-                <PlusCircle size={20} className="group-hover:rotate-90 transition-transform duration-500"/> Nova Oportunidade
-             </button>
-          </div>
-        </header>
-
-        {/* View Principal */}
-        <div className="flex-1 overflow-auto p-16 custom-scrollbar bg-[#F8FAFC] relative">
-          
-          {/* Background Branding Decor */}
-          <div className="absolute top-0 right-0 p-40 opacity-[0.02] pointer-events-none -mr-40 -mt-20">
-             <Zap size={800} strokeWidth={1} className="text-slate-900"/>
-          </div>
-
-          {activeTab === 'pipeline' && <RenderPipeline />}
-          {activeTab === 'commission' && <RenderCommission />}
-          {activeTab === 'metrics' && <RenderMetrics />}
-          {activeTab === 'logs' && <RenderAuditLogs />}
-
-          {/* Footer Informativo */}
-          <div className="mt-20 pt-10 border-t border-slate-200/50 flex items-center justify-between text-slate-400">
-             <div className="flex items-center gap-8 font-black uppercase text-[9px] tracking-[0.3em]">
-                <span>Processador: Quad-Core CRM-V5</span>
-                <span>Uptime: 99.98%</span>
-                <span className="flex items-center gap-2"><Globe size={10}/> Global Endpoint: São Paulo, BR</span>
-             </div>
-             <p className="font-black italic text-[11px] uppercase tracking-tighter">Powered by <span className="text-blue-600">Enterprise AI Layer</span></p>
-          </div>
-        </div>
-
-        {/* =============================================================================
-         * SECTION 8: MODAIS E OVERLAYS GIGANTES
-         * =============================================================================
-         */}
-
-        {/* MODAL DE ADICIONAR LEAD */}
-        {isModalOpen && (
-          <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-2xl z-[1000] flex items-center justify-center p-10 animate-in fade-in duration-300">
-            <div className="bg-white w-full max-w-4xl rounded-[6rem] shadow-4xl relative overflow-hidden border-t-[40px] border-blue-600 animate-in zoom-in-95 duration-500">
-              <button 
-                onClick={() => setIsModalOpen(false)} 
-                className="absolute top-10 right-10 p-6 bg-slate-50 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-full transition-all group"
-              >
-                <X size={40} className="group-hover:rotate-90 transition-transform duration-500"/>
-              </button>
-
-              <div className="p-24">
-                <div className="mb-20">
-                  <h2 className="text-8xl font-black italic uppercase tracking-tighter leading-[0.8]">Entrada de<br/><span className="text-blue-600 text-9xl">Negócio</span></h2>
-                  <p className="text-slate-400 font-black uppercase tracking-[0.4em] mt-8 flex items-center gap-4"><Info size={20}/> Preencha os metadados do lead para iniciar o track comercial</p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-16">
-                  <div className="space-y-12">
-                    <div className="group">
-                      <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.5em] mb-4 block group-focus-within:text-blue-600 transition-colors">Nome da Oportunidade</label>
-                      <input 
-                        className="w-full bg-slate-50 p-10 rounded-[2.5rem] font-black text-4xl outline-none focus:bg-white border-4 border-transparent focus:border-blue-600 transition-all shadow-inner uppercase"
-                        placeholder="NOME OU EMPRESA"
-                        value={newLead.name}
-                        onChange={e => setNewLead({...newLead, name: e.target.value})}
-                        autoFocus
-                      />
-                    </div>
-                    <div className="group">
-                      <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.5em] mb-4 block group-focus-within:text-blue-600 transition-colors">Valor Estimado</label>
-                      <div className="relative">
-                        <span className="absolute left-8 top-1/2 -translate-y-1/2 text-3xl font-black italic text-slate-300">R$</span>
-                        <input 
-                          type="number"
-                          className="w-full bg-slate-50 p-10 pl-24 rounded-[2.5rem] font-black text-6xl outline-none focus:bg-white border-4 border-transparent focus:border-blue-600 transition-all shadow-inner"
-                          value={newLead.value}
-                          onChange={e => setNewLead({...newLead, value: Number(e.target.value)})}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-12">
-                     <div className="group">
-                        <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.5em] mb-4 block group-focus-within:text-blue-600 transition-colors">Canal de Entrada</label>
-                        <select 
-                          className="w-full bg-slate-50 p-10 rounded-[2.5rem] font-black text-2xl outline-none focus:bg-white border-4 border-transparent focus:border-blue-600 transition-all shadow-inner appearance-none cursor-pointer"
-                          value={newLead.stage}
-                          onChange={e => setNewLead({...newLead, stage: e.target.value})}
-                        >
-                          {STAGES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
-                        </select>
-                     </div>
-                     <div className="bg-blue-50 p-10 rounded-[3.5rem] border-2 border-dashed border-blue-200 flex items-center gap-8">
-                        <div className="bg-blue-600 p-6 rounded-3xl text-white shadow-xl"><ShieldCheck size={32}/></div>
-                        <p className="text-[11px] font-black text-blue-900 uppercase tracking-widest leading-relaxed">Este registro será auditado automaticamente pela camada financeira após a conversão em "Fechado".</p>
-                     </div>
-                  </div>
-                </div>
-
-                <div className="mt-20 flex gap-8">
-                  <button 
-                    onClick={() => setIsModalOpen(false)}
-                    className="flex-1 py-12 border-4 border-slate-100 rounded-full font-black uppercase text-xl text-slate-300 hover:text-rose-500 hover:border-rose-500 transition-all active:scale-95"
-                  >
-                    Descartar Registro
-                  </button>
-                  <button 
-                    onClick={handleCreateLead}
-                    className="flex-[2] py-12 bg-slate-950 text-white rounded-full font-black uppercase text-2xl tracking-[0.3em] hover:bg-blue-600 shadow-2xl transition-all flex items-center justify-center gap-8 active:scale-95"
-                  >
-                    Confirmar Registro <ArrowRightCircle size={40}/>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* MODAL DE DETALHES DO LEAD (EXPANDIDO) */}
-        {selectedLead && (
-           <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-3xl z-[1100] flex justify-end animate-in slide-in-from-right-full duration-700">
-              <div className="bg-white w-[1000px] h-full shadow-4xl flex flex-col relative">
-                 <button onClick={() => setSelectedLead(null)} className="absolute top-12 -left-20 bg-white p-6 rounded-l-[3rem] text-slate-900 shadow-xl hover:text-blue-600 transition-colors"><ChevronRight size={32}/></button>
-                 
-                 {/* Header Detail */}
-                 <div className="p-16 border-b-8 border-slate-50">
-                    <div className="flex items-center gap-4 mb-8">
-                       <span className="bg-blue-600 text-white px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest italic shadow-lg">Lead Profile v5</span>
-                       <span className="text-slate-300 font-black text-[10px] uppercase tracking-widest">ID: {selectedLead.id}</span>
-                    </div>
-                    <h2 className="text-7xl font-black italic uppercase tracking-tighter text-slate-950 mb-6">{selectedLead.name}</h2>
-                    <div className="flex items-center gap-12">
-                       <div className="flex items-center gap-4">
-                          <DollarSign className="text-emerald-500" size={32}/>
-                          <span className="text-5xl font-black italic tracking-tighter">R$ {selectedLead.value.toLocaleString()}</span>
-                       </div>
-                       <div className="h-10 w-px bg-slate-200"></div>
-                       <div className="flex items-center gap-4">
-                          <div className={`w-4 h-4 rounded-full ${STAGES.find(s => s.id === selectedLead.stage)?.color}`}></div>
-                          <span className="text-2xl font-black uppercase text-slate-400 italic">{STAGES.find(s => s.id === selectedLead.stage)?.label}</span>
-                       </div>
-                    </div>
-                 </div>
-
-                 {/* Body Detail Content */}
-                 <div className="flex-1 overflow-y-auto p-16 space-y-20 custom-scrollbar">
-                    
-                    {/* CRM Dashboard Mini */}
-                    <div className="grid grid-cols-3 gap-8">
-                       <DetailStat label="Último Update" val={new Date(selectedLead.lastUpdate).toLocaleDateString()} icon={<Clock size={20}/>}/>
-                       <DetailStat label="Score Lead" val="8.4/10" icon={<Activity size={20}/>} isHigh />
-                       <DetailStat label="Atividade" val="ALTA" icon={<Zap size={20}/>}/>
-                    </div>
-
-                    {/* Editor de Notas Robust */}
-                    <section className="space-y-8">
-                       <div className="flex items-center justify-between">
-                          <h4 className="text-2xl font-black italic uppercase tracking-tighter flex items-center gap-6"><FileText className="text-blue-600"/> Histórico & Notas do Consultor</h4>
-                          <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Autosave Ativo</span>
-                       </div>
-                       <textarea 
-                          className="w-full h-80 bg-slate-50 rounded-[4rem] p-12 text-xl font-bold text-slate-600 outline-none border-4 border-transparent focus:border-blue-500 focus:bg-white transition-all shadow-inner leading-relaxed"
-                          placeholder="Digite aqui observações, notas de reuniões e próximos passos estratégicos..."
-                          value={selectedLead.notes || ""}
-                          onChange={e => updateLead(selectedLead.id, { notes: e.target.value })}
-                       />
-                    </section>
-
-                    {/* Auditoria Checklist Detail */}
-                    <section className="space-y-8">
-                       <h4 className="text-2xl font-black italic uppercase tracking-tighter flex items-center gap-6"><ClipboardCheck className="text-blue-600"/> Validação de Etapa</h4>
-                       <div className="grid grid-cols-2 gap-6">
-                          <DetailCheck active={selectedLead.followUp} label="Follow-up Realizado" />
-                          <DetailCheck active={selectedLead.hasUpSell} label="Análise de Up-sell" />
-                          <DetailCheck active={selectedLead.hasCrossSell} label="Análise de Cross-sell" />
-                          <DetailCheck active={selectedLead.reactivated} label="Status: Reativado" />
-                       </div>
-                    </section>
-
-                    {/* Timeline de Eventos Detail */}
-                    <section className="space-y-12">
-                       <h4 className="text-2xl font-black italic uppercase tracking-tighter flex items-center gap-6"><History className="text-blue-600"/> Timeline do Cliente</h4>
-                       <div className="space-y-10 pl-6 border-l-4 border-slate-100">
-                          <TimelineStep time="Hoje" action="Lead editado por auditoria financeira" />
-                          <TimelineStep time="2 dias atrás" action="Enviado proposta de cotação v2" />
-                          <TimelineStep time="1 semana atrás" action="Entrada via prospecção externa" />
-                       </div>
-                    </section>
-                 </div>
-
-                 {/* Detail Footer */}
-                 <div className="p-16 border-t border-slate-100 flex gap-6">
-                    <button className="flex-1 py-10 bg-slate-950 text-white rounded-[2.5rem] font-black uppercase text-sm tracking-widest hover:bg-blue-600 transition-all flex items-center justify-center gap-4 active:scale-95">
-                       <Printer size={18}/> Imprimir Report Lead
-                    </button>
-                    <button className="flex-1 py-10 border-4 border-slate-100 text-slate-300 rounded-[2.5rem] font-black uppercase text-sm tracking-widest hover:text-rose-600 hover:border-rose-600 transition-all flex items-center justify-center gap-4 active:scale-95">
-                       <Archive size={18}/> Arquivar Permanentemente
-                    </button>
-                 </div>
-              </div>
-           </div>
-        )}
-      </main>
-    </div>
-  );
-}
-
-/**
- * =============================================================================
- * SECTION 9: MINI SUBCOMPONENTES (O SEGREDO DA DENSIDADE UI)
- * =============================================================================
- */
-
-function SidebarBtn({ icon, label, active, onClick, open }: any) {
-  return (
-    <button 
-      onClick={onClick} 
-      className={`w-full flex items-center gap-8 p-8 rounded-[2.5rem] transition-all duration-500 group relative ${active ? 'bg-blue-600 text-white shadow-2xl shadow-blue-500/40 translate-x-4' : 'text-slate-500 hover:bg-white/5 hover:text-white'}`}
-    >
-      <span className={`transition-transform duration-500 ${active ? 'scale-125' : 'group-hover:scale-110'}`}>{icon}</span>
-      {open && <span className="font-black uppercase text-[11px] tracking-[0.3em] whitespace-nowrap">{label}</span>}
-      {active && <div className="absolute right-6 w-2 h-2 bg-white rounded-full animate-ping"></div>}
-    </button>
-  );
-}
-
-function MetaInput({ label, value, onChange, icon, isHighlight }: any) {
-  return (
-    <div className="group">
-      <div className="flex items-center gap-3 mb-4">
-        {icon && <span className="text-slate-700 group-focus-within:text-blue-500 transition-colors">{icon}</span>}
-        <label className={`text-[10px] font-black uppercase tracking-widest ${isHighlight ? 'text-blue-400' : 'text-slate-600 group-focus-within:text-white'}`}>{label}</label>
-      </div>
-      <input 
-        type="number" 
-        value={value} 
-        onChange={e => onChange(Number(e.target.value))} 
-        className="w-full bg-transparent border-b-2 border-white/10 text-white font-black text-4xl py-4 outline-none focus:border-blue-500 transition-all placeholder:text-slate-800"
-      />
-    </div>
-  );
-}
-
-function MiniActionBtn({ active, label, onClick, color, isFull }: any) {
-  return (
-    <button 
-      onClick={onClick} 
-      className={`py-3.5 px-4 rounded-2xl text-[10px] font-black transition-all border-2 flex items-center justify-center gap-2 ${isFull ? 'w-full' : ''} ${active ? `${color} border-transparent text-white shadow-lg scale-[1.03]` : 'bg-white border-slate-100 text-slate-300 hover:border-slate-300'}`}
-    >
-      {active && <Check size={12} strokeWidth={4}/>}
-      {label}
-    </button>
-  );
-}
-
-function AuditMetric({ label, val, sub, isHighlight }: any) {
-  return (
-    <div className="text-center group cursor-default">
-       <p className="text-[11px] font-black text-slate-500 uppercase tracking-[0.4em] mb-4 group-hover:text-blue-400 transition-colors">{label}</p>
-       <p className={`text-7xl font-black italic tracking-tighter leading-none mb-3 ${isHighlight ? 'text-blue-500' : 'text-white'}`}>{val}</p>
-       <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest">{sub}</p>
-    </div>
-  );
-}
-
-function AcceleratorCard({ status, label, desc, current, bonus }: any) {
-  return (
-    <div className={`p-10 rounded-[4rem] border-2 transition-all duration-700 flex items-center gap-10 ${status ? 'bg-emerald-500/5 border-emerald-500/20 shadow-xl' : 'bg-slate-50 border-slate-100 opacity-40'}`}>
-       <div className={`w-24 h-24 rounded-[2.5rem] flex items-center justify-center shadow-2xl transition-transform duration-700 ${status ? 'bg-emerald-500 text-white rotate-12 group-hover:rotate-0' : 'bg-slate-200 text-slate-400'}`}>
-          {status ? <Award size={48}/> : <Lock size={32}/>}
-       </div>
-       <div className="flex-1">
-          <div className="flex items-center gap-4 mb-2">
-            <h4 className={`font-black uppercase text-lg italic tracking-tighter ${status ? 'text-slate-900' : 'text-slate-400'}`}>{label}</h4>
-            {status && <span className="bg-emerald-500 text-white px-4 py-1 rounded-full text-[9px] font-black italic">{bonus}</span>}
-          </div>
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-6">{desc}</p>
-          <div className="bg-white/80 border border-slate-100 px-6 py-3 rounded-2xl text-[13px] font-black text-slate-900 shadow-sm inline-flex items-center gap-3 italic">
-             <Activity size={14} className="text-blue-600"/> Real: {current}
-          </div>
-       </div>
-    </div>
-  );
-}
-
-function MetricCard({ label, val, icon, color, sub }: any) {
-  return (
-    <div className="bg-white p-16 rounded-[5rem] shadow-sm border border-slate-100 hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 group">
-       <div className="flex justify-between items-start mb-12">
-          <div className={`p-6 rounded-[2.5rem] bg-slate-50 transition-colors group-hover:bg-slate-900 group-hover:text-white ${color}`}>{icon}</div>
-          <div className="text-right">
-             <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.4em] mb-3">{label}</p>
-             <p className={`text-6xl font-black italic tracking-tighter text-slate-950`}>{val}</p>
-          </div>
-       </div>
-       <div className="pt-8 border-t border-slate-50 flex items-center justify-between">
-          <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">{sub}</span>
-          <ArrowRight className="text-slate-200 group-hover:text-blue-500 group-hover:translate-x-2 transition-all" size={20}/>
-       </div>
-    </div>
-  );
-}
-
-function ComboItem({ active, label }: any) {
-  return (
-    <div className={`flex items-center gap-6 p-6 rounded-[2.5rem] border-2 transition-all ${active ? 'bg-blue-600 border-transparent text-white shadow-xl translate-x-3' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>
-       <div className={`p-3 rounded-full ${active ? 'bg-white text-blue-600' : 'bg-slate-200 text-slate-400'}`}>
-          {active ? <Check size={20} strokeWidth={4}/> : <X size={20} strokeWidth={4}/>}
-       </div>
-       <span className="font-black uppercase text-[10px] tracking-widest">{label}</span>
-    </div>
-  );
-}
-
-function FunnelStep({ label, current, meta, color, isPercent }: any) {
-  const progress = Math.min((current / meta) * 100, 100);
-  return (
-    <div className="group">
-       <div className="flex justify-between items-end mb-5">
           <div>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-2">{label}</p>
-            <p className="text-4xl font-black italic tracking-tighter">
-              {isPercent ? `${current.toFixed(1)}%` : current} 
-              <span className="text-xs not-italic text-slate-300 ml-3">/ Meta: {isPercent ? `${meta}%` : meta}</span>
+            <h1 className="text-4xl font-black tracking-tighter text-slate-900 italic">SALES<span className="text-blue-600">PRO</span> CORE</h1>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] flex items-center gap-2">
+              <span className="w-2 h-2 bg-emerald-500 rounded-full"></span> Multi-Cycle Control System v5.2
             </p>
           </div>
-          <span className={`text-xs font-black italic ${progress >= 100 ? 'text-emerald-500' : 'text-blue-600'}`}>{progress.toFixed(0)}%</span>
-       </div>
-       <div className="h-6 w-full bg-slate-50 rounded-full p-1.5 shadow-inner relative overflow-hidden">
-          <div className={`h-full rounded-full transition-all duration-1000 shadow-lg ${color}`} style={{ width: `${progress}%` }}></div>
-       </div>
+        </div>
+
+        <div className="flex flex-wrap justify-center gap-3 bg-white p-3 rounded-[3rem] shadow-xl border border-white">
+          <div className="flex bg-slate-100 p-1.5 rounded-2xl mr-4">
+            {[1, 2, 3, 4].map(w => (
+              <button key={w} onClick={() => setCurrentWeek(w)} className={`px-5 py-2.5 rounded-xl font-black text-xs transition-all ${currentWeek === w ? 'bg-white text-blue-600 shadow-md scale-110' : 'text-slate-400 hover:text-slate-600'}`}>S{w}</button>
+            ))}
+          </div>
+          <nav className="flex gap-1">
+            {[
+              { id: 'pipeline', label: 'Pipeline', icon: <Layers size={14}/> },
+              { id: 'funnel', label: 'Funil', icon: <ArrowDownWideNarrow size={14}/> },
+              { id: 'metrics', label: 'KPIs', icon: <BarChart size={14}/> },
+              { id: 'commission', label: 'Financeiro', icon: <DollarSign size={14}/> },
+              { id: 'archive', label: 'Histórico', icon: <Archive size={14}/> }
+            ].map(tab => (
+              <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`px-6 py-3 rounded-2xl font-black text-[10px] uppercase transition-all ${activeTab === tab.id ? 'bg-slate-900 text-white shadow-2xl' : 'text-slate-500 hover:bg-slate-50'}`}>
+                {tab.icon} {tab.label}
+              </button>
+            ))}
+          </nav>
+          <div className="flex gap-2 border-l pl-4 border-slate-100">
+             <button onClick={() => setIsModalOpen(true)} className="bg-blue-600 text-white p-4 rounded-full shadow-lg hover:scale-110 active:scale-95 transition-all"><PlusCircle size={22} /></button>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-[1600px] mx-auto">
+        
+        {/* LEGENDA DE ETIQUETAS (VISÍVEL NO PIPELINE) */}
+        {activeTab === 'pipeline' && (
+          <div className="max-w-7xl mx-auto mb-6 flex flex-wrap gap-4 p-5 bg-white rounded-[2rem] border shadow-sm items-center animate-in fade-in slide-in-from-top-4">
+            <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase mr-4 tracking-widest"><Info size={16} className="text-blue-500"/> Legenda de Ações Prioritárias:</div>
+            {AVAILABLE_TAGS.map(tag => (
+              <div key={tag.id} className={`flex items-center gap-3 px-4 py-2 rounded-full border ${tag.light} text-[9px] font-black shadow-sm`}>
+                <div className={`w-2.5 h-2.5 rounded-full ${tag.color} shadow-sm`} /> {tag.label}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ABA 1: PIPELINE COM ETIQUETAS */}
+        {activeTab === 'pipeline' && (
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-6 animate-in fade-in slide-in-from-bottom-4">
+            {STAGES.map(stage => {
+              const stageLeads = leads.filter(l => l.stage === stage.id && Number(l.week) === currentWeek && !l.isArchived);
+              const columnValue = stageLeads.reduce((acc, curr) => acc + (Number(curr.value) || 0), 0);
+              
+              return (
+                <div 
+                  key={stage.id} 
+                  onDragOver={onDragOver}
+                  onDragLeave={onDragLeave}
+                  onDrop={(e) => onDrop(e, stage.id)}
+                  className="bg-slate-200/40 p-6 rounded-[3rem] border-2 border-dashed border-slate-300/50 min-h-[900px] transition-all"
+                >
+                  <div className="mb-8 px-2 flex justify-between items-start">
+                    <div>
+                      <h3 className="font-black text-[10px] uppercase text-slate-400 tracking-[0.2em] mb-1">{stage.label}</h3>
+                      <p className="text-xl font-black text-slate-800 tracking-tighter">R$ {columnValue.toLocaleString()}</p>
+                    </div>
+                    <div className="bg-white px-3 py-1 rounded-xl text-[10px] font-black text-blue-600 shadow-sm border">{stageLeads.length}</div>
+                  </div>
+
+                  <div className="space-y-5">
+                    {stageLeads.map(lead => {
+                      const isStale = (Date.now() - new Date(lead.lastUpdate).getTime()) > (3 * 24 * 60 * 60 * 1000) && stage.id !== 'fechado';
+                      return (
+                        <div 
+                          key={lead.id} 
+                          draggable 
+                          onDragStart={(e) => onDragStart(e, lead.id)}
+                          className={`bg-white p-6 rounded-[2.5rem] shadow-sm border-2 transition-all hover:shadow-2xl relative group cursor-grab active:cursor-grabbing ${isStale ? 'border-rose-100 bg-rose-50/20' : 'border-white'}`}
+                        >
+                          <button onClick={() => deleteLead(lead.id)} className="absolute -right-2 -top-2 bg-white text-rose-500 p-2.5 rounded-full shadow-xl border opacity-0 group-hover:opacity-100 transition-all hover:bg-rose-500 hover:text-white z-10"><Trash2 size={14}/></button>
+                          
+                          {/* EXIBIÇÃO DAS ETIQUETAS NO CARD */}
+                          <div className="flex flex-wrap gap-1.5 mb-4">
+                            {lead.tags?.split(',').filter(t => t).map(tagId => {
+                              const tag = AVAILABLE_TAGS.find(at => at.id === tagId);
+                              return tag ? (
+                                <div key={tagId} className={`px-2.5 py-1 rounded-full text-[7px] font-black ${tag.light} border shadow-sm uppercase animate-in zoom-in`}>
+                                  {tag.label}
+                                </div>
+                              ) : null;
+                            })}
+                          </div>
+
+                          <div className="flex justify-between items-center mb-4">
+                            <span className="text-[9px] font-black text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-100 uppercase tracking-widest">{lead.vendor}</span>
+                            <Grab size={14} className="text-slate-200" />
+                          </div>
+
+                          <h4 className="font-black text-xs text-slate-800 uppercase mb-1 leading-tight tracking-tight">{lead.name}</h4>
+                          <div className="text-emerald-600 font-black text-sm mb-4">R$ {Number(lead.value).toLocaleString()}</div>
+                          
+                          <textarea 
+                            className="w-full text-[10px] p-3.5 bg-slate-50 border-none rounded-2xl resize-none font-medium text-slate-500 mb-4 focus:ring-2 focus:ring-blue-100 transition-all"
+                            rows="2" placeholder="Notas do lead..."
+                            value={lead.notes || ''}
+                            onChange={(e) => handleSaveLead({...lead, notes: e.target.value})}
+                          />
+
+                          {/* SELEÇÃO DE ETIQUETAS E AÇÕES */}
+                          <div className="pt-4 border-t border-slate-50 space-y-4">
+                            <div>
+                               <p className="text-[7px] font-black text-slate-300 uppercase mb-2 tracking-widest">Ação Necessária:</p>
+                               <div className="flex gap-2.5">
+                                 {AVAILABLE_TAGS.map(tag => (
+                                   <button 
+                                     key={tag.id}
+                                     onClick={() => toggleTag(lead, tag.id)}
+                                     className={`w-4 h-4 rounded-full border-2 transition-all ${lead.tags?.includes(tag.id) ? `${tag.color} border-white shadow-md scale-125` : 'border-slate-100 bg-slate-50 hover:border-slate-300'}`}
+                                     title={tag.label}
+                                   />
+                                 ))}
+                               </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2">
+                              <QuickAction label="Follow-Up" active={lead.followUp} onClick={()=>handleSaveLead({...lead, followUp: !lead.followUp})} color="bg-amber-500" />
+                              <QuickAction label="Pós-Venda" active={lead.postSale} onClick={()=>handleSaveLead({...lead, postSale: !lead.postSale})} color="bg-indigo-600" />
+                              <QuickAction label="Cross-Sell" active={lead.hasCrossSell} onClick={()=>handleSaveLead({...lead, hasCrossSell: !lead.hasCrossSell})} color="bg-blue-600" />
+                              <QuickAction label="Up-Sell" active={lead.hasUpSell} onClick={()=>handleSaveLead({...lead, hasUpSell: !lead.hasUpSell})} color="bg-emerald-600" />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ABA 2: FUNIL DE CONVERSÃO (RESTABELECIDO) */}
+        {activeTab === 'funnel' && (
+          <div className="space-y-10 animate-in fade-in duration-500">
+            <div className="bg-white p-12 rounded-[4rem] shadow-2xl border border-white">
+              <div className="flex items-center gap-4 mb-12">
+                <div className="bg-blue-50 p-4 rounded-3xl text-blue-600"><PieChart size={32}/></div>
+                <div>
+                  <h3 className="text-3xl font-black tracking-tighter uppercase">Análise de Conversão por Etapa</h3>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Fluxo de eficiência operacional</p>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-4 max-w-5xl mx-auto">
+                <FunnelStep label="Lead Captado" count={analytics.funnel.contato} percent={100} color="bg-slate-400" />
+                <FunnelRate value={analytics.rates.c2o} />
+                <FunnelStep label="Orçamento/Proposta" count={analytics.funnel.orcamento} percent={analytics.rates.c2o} color="bg-blue-500" />
+                <FunnelRate value={analytics.rates.o2n} />
+                <FunnelStep label="Negociação Ativa" count={analytics.funnel.negociacao} percent={analytics.rates.o2n} color="bg-amber-500" />
+                <FunnelRate value={analytics.rates.n2f} />
+                <FunnelStep label="Contrato Fechado" count={analytics.funnel.fechado} percent={analytics.rates.total} color="bg-emerald-600" />
+              </div>
+
+              <div className="mt-16 grid grid-cols-1 md:grid-cols-4 gap-8">
+                <ConversionCard label="Conversão Final" value={analytics.rates.total.toFixed(1) + "%"} sub="Início ao Fim" />
+                <ConversionCard label="Eficiência Proposta" value={analytics.rates.c2o.toFixed(1) + "%"} sub="Lead p/ Proposta" />
+                <ConversionCard label="Eficiência Fechamento" value={analytics.rates.n2f.toFixed(1) + "%"} sub="Negoc p/ Fechado" />
+                <ConversionCard label="Health Score" value="A+" sub="Saúde do Funil" />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ABA 3: KPIs DETALHADOS */}
+        {activeTab === 'metrics' && (
+          <div className="bg-white rounded-[4rem] shadow-2xl border overflow-hidden animate-in slide-in-from-bottom-8">
+            <div className="p-14 border-b bg-slate-50/50 flex flex-col md:flex-row justify-between items-center gap-8">
+              <h3 className="text-3xl font-black uppercase tracking-tighter flex items-center gap-4"><Activity className="text-blue-600" size={32}/> Dashboard de KPIs</h3>
+              <div className="flex gap-4 text-center">
+                <div className="bg-white p-6 rounded-3xl border shadow-sm min-w-[160px]">
+                  <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Taxa Conversão</p>
+                  <p className="text-3xl font-black text-slate-800">{analytics.rates.total.toFixed(1)}%</p>
+                </div>
+                <div className="bg-white p-6 rounded-3xl border shadow-sm min-w-[160px]">
+                  <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Aproveitamento Cross</p>
+                  <p className="text-3xl font-black text-slate-800">{analytics.kpis.cross.toFixed(1)}%</p>
+                </div>
+              </div>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead className="bg-slate-900 text-white text-[11px] font-black uppercase tracking-widest">
+                  <tr>
+                    <th className="p-12">Métrica Estratégica</th>
+                    <th className="p-12 text-center">Meta Ciclo</th>
+                    {[1,2,3,4].map(w => <th key={w} className="p-12 text-center">S{w}</th>)}
+                    <th className="p-12 text-center bg-blue-900">Total</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y font-bold text-xs uppercase text-slate-600">
+                  <KPIRow title="Novos Contatos Realizados" meta={goals.contacts} field="contato" data={leads} total={analytics.funnel.contato} format={v=>v} />
+                  <KPIRow title="Taxa de Follow-up (%)" meta={goals.followUp+"%"} field="fup" data={leads} total={analytics.kpis.fup.toFixed(1)+"%"} format={v=>v.toFixed(1)+"%"} isPercent />
+                  <KPIRow title="Taxa de Cross-Sell" meta={goals.crossSell+"%"} field="cross" data={leads} total={analytics.kpis.cross.toFixed(1)+"%"} format={v=>v.toFixed(1)+"%"} isPercent />
+                  <KPIRow title="Pós-Venda Ativo" meta={goals.postSale+"%"} field="post" data={leads} total={analytics.kpis.post.toFixed(1)+"%"} format={v=>v.toFixed(1)+"%"} isPercent />
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ABA 4: FINANCEIRO E REGRAS DE COMISSÃO */}
+        {activeTab === 'commission' && (
+          <div className="space-y-12 pb-20 animate-in zoom-in duration-500">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+              <div className="bg-slate-900 p-16 rounded-[4.5rem] text-white shadow-2xl relative overflow-hidden group">
+                <DollarSign className="absolute -right-10 -top-10 opacity-10 group-hover:rotate-12 transition-all duration-1000" size={300}/>
+                <p className="text-[12px] font-black uppercase tracking-[0.4em] text-blue-500 mb-4">Receita Líquida Consolidada</p>
+                <h3 className="text-8xl font-black tracking-tighter mb-12 font-mono">R$ {analytics.totalRev.toLocaleString()}</h3>
+                <div className="grid grid-cols-2 gap-10 pt-10 border-t border-white/10">
+                  <div><p className="text-[10px] font-black opacity-50 mb-1 uppercase tracking-widest">Performance</p><p className="text-3xl font-black">{analytics.revPerf.toFixed(1)}%</p></div>
+                  <div><p className="text-[10px] font-black opacity-50 mb-1 uppercase tracking-widest">Ticket Médio</p><p className="text-3xl font-black">R$ {analytics.avgTicket.toLocaleString()}</p></div>
+                </div>
+              </div>
+
+              <div className="bg-white p-16 rounded-[4.5rem] border-[10px] border-emerald-500 shadow-2xl flex flex-col justify-center items-center text-center">
+                <div className="bg-emerald-50 p-6 rounded-full mb-8 text-emerald-600"><Award size={64}/></div>
+                <p className="text-[14px] text-slate-400 font-black uppercase tracking-[0.4em] mb-4">Crédito em Conta Previsto</p>
+                <h3 className="text-9xl text-emerald-600 font-black tracking-tighter font-mono">R$ {analytics.finalCommission.toLocaleString()}</h3>
+                <div className="mt-10 bg-emerald-600 text-white px-12 py-4 rounded-[2rem] font-black text-xs uppercase tracking-[0.2em] shadow-xl">Fee de Performance: {analytics.finalRate.toFixed(1)}%</div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+               <FinanceBox title="Escada de Comissão" icon={<ShieldCheck className="text-blue-500"/>}>
+                  <FinanceRule label="Abaixo de 90%" val="0.0%" active={analytics.revPerf < 90}/>
+                  <FinanceRule label="Meta 90% a 99%" val="1.5%" active={analytics.revPerf >= 90 && analytics.revPerf < 100}/>
+                  <FinanceRule label="Meta 100% a 109%" val="2.5%" active={analytics.revPerf >= 100 && analytics.revPerf < 110}/>
+                  <FinanceRule label="Meta 110% (Ultra)" val="3.5%" active={analytics.revPerf >= 110}/>
+               </FinanceBox>
+               
+               <FinanceBox title="Aceleradores Ativos" icon={<Zap className="text-amber-500"/>}>
+                  <FinanceRule label="Meta de Ticket Médio" val="+0.5%" active={analytics.avgTicket >= goals.ticket}/>
+                  <FinanceRule label="Meta Taxa Cross-Sell" val="+0.5%" active={analytics.kpis.cross >= goals.crossSell}/>
+                  <FinanceRule label="Meta Taxa Up-Sell" val="+0.5%" active={analytics.kpis.up >= goals.upSell}/>
+               </FinanceBox>
+
+               <div className="bg-slate-900 p-12 rounded-[3.5rem] text-white shadow-xl flex flex-col justify-between">
+                  <div>
+                    <h4 className="text-xs font-black uppercase mb-8 border-b border-white/10 pb-6 flex items-center gap-3"><Award className="text-emerald-500"/> Bônus Operacional R$ 300</h4>
+                    <p className="text-xs text-slate-400 leading-relaxed mb-10 italic">Habilitado ao bater simultaneamente: Meta de Contatos ({goals.contacts}) e Meta de Follow-up ({goals.followUp}%).</p>
+                  </div>
+                  <div className={`p-8 rounded-[2rem] border-2 transition-all text-center ${analytics.bonusFixoHabilitado ? 'bg-emerald-500/20 border-emerald-500 shadow-lg' : 'bg-white/5 border-white/5 opacity-30'}`}>
+                    <p className="text-2xl font-black">{analytics.bonusFixoHabilitado ? 'LIBERADO' : 'BLOQUEADO'}</p>
+                  </div>
+               </div>
+            </div>
+
+            <div className="bg-white rounded-[4rem] border shadow-2xl p-16">
+               <div className="flex justify-between items-center mb-16">
+                  <h4 className="text-2xl font-black text-slate-800 tracking-tighter uppercase flex items-center gap-4"><Settings className="text-blue-600"/> Configuração de Metas</h4>
+                  <div className="flex gap-4">
+                     <ParamInput label="Meta Faturamento" val={goals.revenue} onChange={v=>setGoals({...goals, revenue:v})}/>
+                     <ParamInput label="Meta Ticket" val={goals.ticket} onChange={v=>setGoals({...goals, ticket:v})}/>
+                  </div>
+               </div>
+               <table className="w-full text-left">
+                 <thead><tr className="text-[11px] font-black text-slate-400 uppercase border-b"><th className="pb-8">Período Operacional</th><th className="pb-8">Faturamento Semanal (R$)</th><th className="pb-8">Ticket Médio (R$)</th></tr></thead>
+                 <tbody className="divide-y">
+                   {[1,2,3,4].map(w => (
+                     <tr key={w} className="group hover:bg-slate-50 transition-all">
+                       <td className="py-10 font-black text-slate-400 text-xs tracking-widest uppercase">SEMANA {w}</td>
+                       <td className="py-4"><input type="number" className="w-full max-w-xs p-5 bg-slate-100 rounded-3xl font-black border-2 border-transparent focus:border-blue-500 focus:bg-white outline-none transition-all" value={commSettings.weeks[w].revenue} onChange={e => setCommSettings({...commSettings, weeks: {...commSettings.weeks, [w]: {...commSettings.weeks[w], revenue: e.target.value}}})} /></td>
+                       <td className="py-4"><input type="number" className="w-full max-w-xs p-5 bg-slate-100 rounded-3xl font-black border-2 border-transparent focus:border-blue-500 focus:bg-white outline-none transition-all" value={commSettings.weeks[w].ticket} onChange={e => setCommSettings({...commSettings, weeks: {...commSettings.weeks, [w]: {...commSettings.weeks[w], ticket: e.target.value}}})} /></td>
+                     </tr>
+                   ))}
+                 </tbody>
+               </table>
+            </div>
+          </div>
+        )}
+
+        {/* ABA 5: HISTÓRICO */}
+        {activeTab === 'archive' && (
+          <div className="animate-in slide-in-from-right-12 duration-700">
+             <div className="bg-white p-14 rounded-[4rem] border shadow-sm flex flex-col md:flex-row justify-between items-center gap-8 mb-10">
+                <div className="flex items-center gap-6">
+                   <div className="bg-slate-900 p-6 rounded-[2.5rem] text-white shadow-2xl"><Archive size={36}/></div>
+                   <div>
+                      <h3 className="text-3xl font-black tracking-tighter uppercase">Leads Arquivados</h3>
+                      <p className="text-xs text-slate-400 font-black uppercase tracking-widest mt-1">Histórico de oportunidades encerradas</p>
+                   </div>
+                </div>
+                <div className="relative w-full md:w-[450px]">
+                   <Search className="absolute left-7 top-1/2 -translate-y-1/2 text-slate-300" size={24}/>
+                   <input type="text" placeholder="Buscar no arquivo..." className="w-full p-7 pl-20 rounded-[2.5rem] border-2 bg-slate-50 font-black outline-none focus:border-blue-600 transition-all shadow-inner" onChange={e => setSearchTerm(e.target.value)} />
+                </div>
+             </div>
+             <div className="bg-white rounded-[4rem] shadow-2xl border overflow-hidden">
+                <table className="w-full text-left">
+                   <thead className="bg-slate-900 text-white font-black uppercase text-[10px] tracking-widest">
+                      <tr><th className="p-14">Lead</th><th className="p-14">Vendedor</th><th className="p-14 text-center">Valor</th><th className="p-14 text-center">Ações</th></tr>
+                   </thead>
+                   <tbody className="divide-y font-bold uppercase text-slate-600 text-xs">
+                      {leads.filter(l => l.isArchived).filter(l => l.name.toLowerCase().includes(searchTerm.toLowerCase())).map(lead => (
+                        <tr key={lead.id} className="hover:bg-slate-50 transition-colors">
+                           <td className="p-14 font-black text-slate-800 text-sm">{lead.name}</td>
+                           <td className="p-14"><span className="bg-blue-50 text-blue-600 px-5 py-2 rounded-xl border border-blue-100 font-black uppercase tracking-widest">{lead.vendor}</span></td>
+                           <td className="p-14 text-center text-emerald-600 font-black text-base">R$ {Number(lead.value).toLocaleString()}</td>
+                           <td className="p-14 text-center">
+                              <button onClick={() => handleSaveLead({...lead, isArchived: false})} className="bg-white p-5 rounded-[1.5rem] shadow-md border hover:bg-blue-600 hover:text-white transition-all hover:scale-110"><RotateCcw size={22}/></button>
+                           </td>
+                        </tr>
+                      ))}
+                   </tbody>
+                </table>
+             </div>
+          </div>
+        )}
+      </main>
+
+      {/* MODAL DE ATIVAÇÃO DE LEAD */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-xl flex items-center justify-center p-4 z-[200] animate-in fade-in">
+          <div className="bg-white rounded-[4.5rem] p-20 max-w-3xl w-full shadow-2xl border-t-[24px] border-blue-600 animate-in zoom-in duration-300 relative overflow-hidden">
+            <h2 className="text-5xl font-black mb-14 uppercase italic tracking-tighter text-slate-800">Nova Oportunidade</h2>
+            <div className="space-y-10">
+               <div className="space-y-4">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] ml-6">Identificação do Cliente</label>
+                  <input className="w-full p-8 rounded-[2.5rem] border-2 bg-slate-50 font-black outline-none focus:border-blue-500 transition-all text-lg shadow-inner" value={newLead.name} onChange={e => setNewLead({...newLead, name: e.target.value})} placeholder="Nome da Empresa..." />
+               </div>
+               <div className="grid grid-cols-2 gap-10">
+                  <div className="space-y-4">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] ml-6">Valor R$</label>
+                    <input type="number" className="w-full p-8 rounded-[2.5rem] border-2 bg-slate-50 font-black outline-none focus:border-blue-500 transition-all text-lg shadow-inner" value={newLead.value} onChange={e => setNewLead({...newLead, value: e.target.value})} placeholder="0,00" />
+                  </div>
+                  <div className="space-y-4">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] ml-6">Responsável</label>
+                    <select className="w-full p-8 rounded-[2.5rem] border-2 bg-slate-50 font-black outline-none focus:border-blue-500 transition-all text-lg shadow-inner appearance-none" value={newLead.vendor} onChange={e => setNewLead({...newLead, vendor: e.target.value})}><option>Vendedor 1</option><option>Vendedor 2</option></select>
+                  </div>
+               </div>
+               <div className="pt-10 border-t">
+                  <button 
+                    disabled={isSaving || !newLead.name}
+                    onClick={async () => {
+                      await handleSaveLead({...newLead, week: currentWeek, isArchived: false, tags: ''});
+                      setIsModalOpen(false);
+                      setNewLead({name: '', value: '', vendor: 'Vendedor 1', notes: '', stage: 'contato', tags: ''});
+                    }} 
+                    className="w-full bg-blue-600 text-white p-10 rounded-[3rem] font-black uppercase shadow-2xl shadow-blue-200 hover:scale-[1.02] active:scale-95 transition-all tracking-[0.4em] text-xl flex items-center justify-center gap-6"
+                  >
+                    {isSaving ? 'REGISTRANDO...' : 'ATIVAR LEAD AGORA'} <ArrowRight size={32}/>
+                  </button>
+               </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function AuditRow({ label, val, status }: any) {
+// --- COMPONENTES AUXILIARES (UI HARD) ---
+
+const QuickAction = ({ label, active, color, onClick }) => (
+  <button onClick={onClick} className={`p-4 rounded-[1.5rem] border-2 text-[9px] font-black uppercase transition-all shadow-sm ${active ? `${color} text-white border-transparent scale-105 shadow-md` : 'bg-white text-slate-300 border-slate-100 hover:border-slate-300'}`}>{label}</button>
+);
+
+const FunnelStep = ({ label, count, percent, color }) => (
+  <div className="flex items-center gap-6">
+    <div className={`h-24 ${color} rounded-[2rem] flex items-center justify-between px-10 text-white shadow-xl transition-all hover:scale-[1.01]`} style={{ width: `${Math.max(percent, 30)}%` }}>
+      <span className="font-black uppercase tracking-widest text-sm">{label}</span>
+      <span className="font-black text-3xl font-mono">{count}</span>
+    </div>
+    <div className="text-slate-400 font-black text-xl italic">{percent.toFixed(0)}%</div>
+  </div>
+);
+
+const FunnelRate = ({ value }) => (
+  <div className="flex justify-center w-full py-1">
+    <div className="flex flex-col items-center gap-1">
+      <div className="w-1 h-8 bg-gradient-to-b from-slate-200 to-transparent rounded-full"></div>
+      <span className="bg-white border text-[10px] font-black px-3 py-1 rounded-full shadow-sm text-blue-600">{value.toFixed(1)}% Conv.</span>
+      <div className="w-1 h-8 bg-gradient-to-t from-slate-200 to-transparent rounded-full"></div>
+    </div>
+  </div>
+);
+
+const ConversionCard = ({ label, value, sub }) => (
+  <div className="bg-slate-50 p-10 rounded-[3rem] border-2 border-white text-center shadow-inner">
+    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{label}</p>
+    <p className="text-4xl font-black text-slate-800 tracking-tighter mb-1">{value}</p>
+    <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">{sub}</p>
+  </div>
+);
+
+const FinanceBox = ({ title, icon, children }) => (
+  <div className="bg-slate-900 p-12 rounded-[4rem] text-white shadow-xl">
+    <h4 className="text-xs font-black uppercase mb-10 border-b border-white/10 pb-8 flex items-center gap-4">{icon} {title}</h4>
+    <div className="space-y-6">{children}</div>
+  </div>
+);
+
+const FinanceRule = ({ label, val, active }) => (
+  <div className={`flex justify-between items-center p-6 rounded-[2rem] border-2 transition-all ${active ? 'bg-white/10 border-emerald-500 shadow-lg' : 'bg-white/5 border-transparent opacity-30'}`}>
+    <span className="text-[10px] font-black uppercase tracking-widest text-white">{label}</span>
+    <span className={`text-sm font-black ${active ? 'text-emerald-400' : 'text-slate-50'}`}>{val}</span>
+  </div>
+);
+
+const ParamInput = ({ label, val, onChange }) => (
+  <div className="flex flex-col gap-3">
+    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-6">{label}</label>
+    <input type="number" className="w-48 p-6 border-2 rounded-[2rem] font-black bg-slate-50 outline-none focus:border-blue-600 transition-all text-sm shadow-inner" value={val} onChange={e => onChange(e.target.value)} />
+  </div>
+);
+
+const KPIRow = ({ title, meta, total, field, data, format, isPercent=false }) => {
+  const getStatusColor = (v) => {
+    const target = isPercent ? parseFloat(meta) : parseFloat(meta)/4;
+    if (v >= target) return 'bg-emerald-500';
+    if (v >= target * 0.7) return 'bg-amber-500';
+    return 'bg-rose-500';
+  };
+  
+  const getWeekValue = (w) => {
+    const sLeads = data.filter(l => Number(l.week) === w && !l.isArchived);
+    const won = sLeads.filter(l => l.stage === 'fechado');
+    if (field === 'contato') return sLeads.length;
+    if (field === 'fup') return sLeads.length > 0 ? (sLeads.filter(l=>l.followUp).length / sLeads.length) * 100 : 0;
+    if (field === 'cross') return won.length > 0 ? (won.filter(l=>l.hasCrossSell).length / won.length) * 100 : 0;
+    if (field === 'post') return won.length > 0 ? (won.filter(l=>l.postSale).length / won.length) * 100 : 0;
+    return 0;
+  };
+
   return (
-    <tr className="group hover:bg-slate-50 transition-colors">
-       <td className="py-10 text-[13px] font-black text-slate-950 uppercase italic tracking-tight">{label}</td>
-       <td className="py-10 text-center font-black text-slate-400 text-lg italic">{val}</td>
-       <td className="py-10 text-right">
-          <div className={`inline-flex items-center gap-4 px-6 py-2 rounded-full border-2 ${status ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-slate-50 text-slate-300 border-slate-100'}`}>
-             <span className="text-[10px] font-black uppercase tracking-widest">{status ? 'Validado' : 'Em Aberto'}</span>
-             {status ? <CheckCircle2 size={18}/> : <AlertCircle size={18}/>}
-          </div>
-       </td>
+    <tr className="hover:bg-slate-50 transition-all">
+      <td className="p-14 font-black text-slate-800 text-sm tracking-tight uppercase">{title}</td>
+      <td className="p-14 text-center italic text-slate-400 font-bold">{meta}</td>
+      {[1, 2, 3, 4].map(w => {
+        const v = getWeekValue(w);
+        return (
+          <td key={w} className="p-14 text-center">
+            <div className="flex flex-col items-center gap-3">
+              <div className={`w-4 h-4 rounded-full ${getStatusColor(v)} shadow-lg ring-4 ring-slate-100 transition-all`}></div>
+              <span className="text-[11px] font-black">{format(v)}</span>
+            </div>
+          </td>
+        );
+      })}
+      <td className="p-14 text-center bg-blue-50/50">
+        <div className="flex flex-col items-center gap-3">
+          <div className={`w-6 h-6 rounded-full ${getStatusColor(parseFloat(total))} shadow-xl`}></div>
+          <span className="text-2xl font-black text-blue-900 tracking-tighter">{total}</span>
+        </div>
+      </td>
     </tr>
   );
-}
-
-function DetailStat({ label, val, icon, isHigh }: any) {
-  return (
-    <div className="bg-slate-50 p-8 rounded-[3rem] border border-slate-100 text-center group hover:bg-white hover:shadow-xl transition-all duration-500">
-       <div className={`inline-flex p-4 rounded-2xl mb-4 ${isHigh ? 'bg-blue-600 text-white' : 'bg-white text-slate-400 shadow-sm'}`}>{icon}</div>
-       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{label}</p>
-       <p className="text-4xl font-black italic tracking-tighter text-slate-900 uppercase">{val}</p>
-    </div>
-  );
-}
-
-function DetailCheck({ active, label }: any) {
-  return (
-    <div className={`flex items-center gap-6 p-8 rounded-[3rem] border-4 transition-all ${active ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-slate-50 border-slate-100 text-slate-300'}`}>
-       <div className={`p-4 rounded-full ${active ? 'bg-emerald-500 text-white shadow-lg' : 'bg-white text-slate-200 shadow-inner'}`}>
-          {active ? <Check size={24} strokeWidth={4}/> : <X size={24} strokeWidth={4}/>}
-       </div>
-       <span className="font-black uppercase text-sm tracking-widest">{label}</span>
-    </div>
-  );
-}
-
-function TimelineStep({ time, action }: any) {
-  return (
-    <div className="relative group">
-       <div className="absolute -left-[34px] top-1 w-5 h-5 bg-white border-4 border-slate-100 rounded-full group-hover:border-blue-500 transition-colors z-10"></div>
-       <p className="text-[10px] font-black text-blue-500 uppercase tracking-[0.2em] mb-1">{time}</p>
-       <p className="text-xl font-bold text-slate-600 uppercase tracking-tight">{action}</p>
-    </div>
-  );
-}
-
-// FIM DO CÓDIGO - VERSÃO ENTERPRISE V5.2 PLATINUM
+};
