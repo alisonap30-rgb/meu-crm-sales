@@ -238,31 +238,79 @@ export default function CRMEnterpriseSystem() {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
-              {STAGES.map(stage => {
-                const stageLeads = leads.filter(l => 
-                  l.stage === stage.id && 
-                  Number(l.week) === currentWeek && 
-                  !l.isArchived &&
-                  l.name.toLowerCase().includes(searchTerm.toLowerCase())
-                );
-                return (
-                  <div key={stage.id} onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={(e) => onDrop(e, stage.id)} className="bg-slate-200/40 p-6 rounded-[3rem] min-h-[800px] transition-all">
-                    <div className="mb-6 flex justify-between items-center px-2">
-                      <h3 className="font-black text-[10px] uppercase text-slate-400 tracking-widest">{stage.label}</h3>
-                      <span className="bg-white px-3 py-1 rounded-lg text-[10px] font-black text-blue-600 border shadow-sm">{stageLeads.length}</span>
-                    </div>
-                    <div className="space-y-4">
-                      {stageLeads.map(lead => (
-                        <div key={lead.id} draggable onDragStart={(e) => onDragStart(e, lead.id)} className="bg-white p-5 rounded-[2rem] shadow-sm border-2 border-white hover:shadow-xl transition-all group relative">
-                          <button onClick={() => deleteLead(lead.id)} className="absolute -right-2 -top-2 bg-white text-rose-500 p-2 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all z-10"><Trash2 size={12}/></button>
-                          
-                          <div className="flex justify-between items-start mb-3">
-                            <span className="text-[8px] font-black text-blue-600 bg-blue-50 px-2 py-1 rounded-md uppercase">{lead.vendor}</span>
-                            {lead.reactivated && <span className="text-[8px] font-black text-amber-600 bg-amber-50 px-2 py-1 rounded-md uppercase border border-amber-100">Reativado</span>}
-                          </div>
+            {/* ... dentro do mapeamento de stageLeads ... */}
+{stageLeads.map(lead => (
+  <div 
+    key={lead.id} 
+    draggable 
+    onDragStart={(e) => onDragStart(e, lead.id)} 
+    className="bg-white p-5 rounded-[2rem] shadow-sm border-2 border-white hover:shadow-xl transition-all group relative"
+  >
+    <button 
+      onClick={() => deleteLead(lead.id)} 
+      className="absolute -right-2 -top-2 bg-white text-rose-500 p-2 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all z-10"
+    >
+      <Trash2 size={12}/>
+    </button>
+    
+    <div className="flex justify-between items-start mb-3">
+      <span className="text-[8px] font-black text-blue-600 bg-blue-50 px-2 py-1 rounded-md uppercase tracking-tighter">
+        {lead.vendor}
+      </span>
+      {lead.reactivated && (
+        <span className="text-[8px] font-black text-amber-600 bg-amber-50 px-2 py-1 rounded-md uppercase border border-amber-100 animate-pulse">
+          REATIVADO
+        </span>
+      )}
+    </div>
 
-                          <h4 className="font-black text-xs uppercase mb-2">{lead.name}</h4>
+    {/* EXIBIÇÃO DAS ETIQUETAS (TAGS) ATIVAS NO CARD */}
+    <div className="flex flex-wrap gap-1 mb-3">
+      {lead.tags && lead.tags.split(',').map(tagId => {
+        const tag = AVAILABLE_TAGS.find(t => t.id === tagId);
+        return tag ? (
+          <span key={tagId} className={`text-[7px] font-black px-2 py-0.5 rounded-full border ${tag.light} uppercase`}>
+            {tag.label}
+          </span>
+        ) : null;
+      })}
+    </div>
+
+    <h4 className="font-black text-xs uppercase mb-2 text-slate-700">{lead.name}</h4>
+    
+    {/* VALOR EDITÁVEL NO CARD */}
+    <div className="flex items-center gap-1 mb-4 bg-slate-50 p-2 rounded-xl border border-dashed border-slate-200 focus-within:border-blue-400 transition-colors">
+      <span className="text-[10px] font-black text-slate-400">R$</span>
+      <input 
+        type="number" 
+        className="bg-transparent font-black text-emerald-600 text-sm outline-none w-full"
+        value={lead.value}
+        onChange={(e) => handleSaveLead({...lead, value: e.target.value})}
+        title="Clique para editar o valor"
+      />
+    </div>
+
+    {/* SELEÇÃO RÁPIDA DE ETIQUETAS (BOTÕES DE AÇÃO) */}
+    <div className="grid grid-cols-2 gap-2 mt-4 pt-4 border-t border-slate-50">
+      <QuickAction label="Follow-Up" active={lead.followUp} onClick={()=>handleSaveLead({...lead, followUp: !lead.followUp})} color="bg-amber-500" />
+      <QuickAction label="Up-Sell" active={lead.hasUpSell} onClick={()=>handleSaveLead({...lead, hasUpSell: !lead.hasUpSell})} color="bg-emerald-600" />
+      <QuickAction label="Reativado" active={lead.reactivated} onClick={()=>handleSaveLead({...lead, reactivated: !lead.reactivated})} color="bg-orange-500" />
+      <QuickAction label="Cross-Sell" active={lead.hasCrossSell} onClick={()=>handleSaveLead({...lead, hasCrossSell: !lead.hasCrossSell})} color="bg-blue-600" />
+    </div>
+
+    {/* MENU DE TAGS ESPECÍFICAS (PROPOSTA, REUNIÃO, ETC) */}
+    <div className="flex gap-1 mt-3 justify-center">
+      {AVAILABLE_TAGS.map(tag => (
+        <button
+          key={tag.id}
+          onClick={() => toggleTag(lead, tag.id)}
+          className={`w-2 h-2 rounded-full transition-all ${lead.tags?.includes(tag.id) ? tag.color : 'bg-slate-200'}`}
+          title={tag.label}
+        />
+      ))}
+    </div>
+  </div>
+))}
                           
                           {/* VALOR EDITÁVEL NO CARD */}
                           <div className="flex items-center gap-1 mb-4 bg-slate-50 p-2 rounded-xl border border-dashed border-slate-200">
